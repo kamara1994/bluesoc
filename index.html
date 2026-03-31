@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLUE SOC — AI Security Operations Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #020508;
+    --panel: #060d14;
+    --panel2: #091420;
+    --border: #0d2a3d;
+    --border2: #1a4a6a;
+    --cyan: #00d4ff;
+    --cyan-dim: #0099bb;
+    --green: #00ff88;
+    --green-dim: #00aa55;
+    --red: #ff2244;
+    --orange: #ff6600;
+    --yellow: #ffcc00;
+    --purple: #9933ff;
+    --text: #c8e8f8;
+    --text-dim: #4a7a9a;
+    --mono: 'Share Tech Mono', monospace;
+    --ui: 'Rajdhani', sans-serif;
+    --head: 'Orbitron', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(0,180,255,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(0,80,180,0.03) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* SCANLINE EFFECT */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .wrap { position: relative; z-index: 2; }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: rgba(6,13,20,0.95);
+    border-bottom: 1px solid var(--border2);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--cyan);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--head);
+    font-size: 14px;
+    color: var(--cyan);
+    text-shadow: 0 0 10px var(--cyan);
+    box-shadow: 0 0 10px rgba(0,212,255,0.2), inset 0 0 10px rgba(0,212,255,0.05);
+    animation: pulse-border 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 10px rgba(0,212,255,0.2), inset 0 0 10px rgba(0,212,255,0.05); }
+    50% { box-shadow: 0 0 20px rgba(0,212,255,0.4), inset 0 0 15px rgba(0,212,255,0.1); }
+  }
+
+  .logo-text { font-family: var(--head); font-size: 18px; font-weight: 900; color: var(--cyan); letter-spacing: 3px; text-shadow: 0 0 20px rgba(0,212,255,0.5); }
+  .logo-sub { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 2px; margin-top: 1px; }
+
+  .header-status {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid;
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .status-pill.online { border-color: var(--green-dim); color: var(--green); background: rgba(0,255,136,0.05); }
+  .status-pill.offline { border-color: #333; color: var(--text-dim); background: rgba(0,0,0,0.2); }
+  .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 1.5s step-end infinite; }
+
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+  #clock { font-family: var(--mono); font-size: 13px; color: var(--cyan); letter-spacing: 2px; }
+
+  .config-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--text-dim);
+    padding: 4px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .config-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-card {
+    background: var(--panel);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent, var(--cyan));
+    opacity: 0.6;
+  }
+
+  .stat-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-value { font-family: var(--head); font-size: 28px; font-weight: 900; color: var(--accent, var(--cyan)); line-height: 1; text-shadow: 0 0 20px var(--accent, var(--cyan)); }
+  .stat-sub { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-top: 4px; }
+
+  .stat-card.critical { --accent: var(--red); }
+  .stat-card.warn { --accent: var(--orange); }
+  .stat-card.blocked { --accent: var(--yellow); }
+  .stat-card.sources { --accent: var(--purple); }
+  .stat-card.runs { --accent: var(--green); }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    height: calc(100vh - 120px);
+    min-height: 600px;
+  }
+
+  .col { background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+
+  /* PANEL HEADERS */
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--panel2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: var(--head);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+
+  .panel-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .badge-green { background: rgba(0,255,136,0.1); border: 1px solid var(--green-dim); color: var(--green); }
+  .badge-orange { background: rgba(255,102,0,0.1); border: 1px solid var(--orange); color: var(--orange); }
+  .badge-cyan { background: rgba(0,212,255,0.1); border: 1px solid var(--cyan-dim); color: var(--cyan); }
+  .badge-red { background: rgba(255,34,68,0.1); border: 1px solid var(--red); color: var(--red); }
+
+  /* EVENT FEED */
+  .event-feed { flex: 1; overflow-y: auto; padding: 8px; }
+  .event-feed::-webkit-scrollbar { width: 4px; }
+  .event-feed::-webkit-scrollbar-track { background: transparent; }
+  .event-feed::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .event-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-left: 3px solid;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border-radius: 2px;
+    animation: slide-in 0.3s ease-out;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .event-card.critical { border-left-color: var(--red); }
+  .event-card.high { border-left-color: var(--orange); }
+  .event-card.medium { border-left-color: var(--yellow); }
+  .event-card.low { border-left-color: var(--green); }
+  .event-card.info { border-left-color: var(--cyan-dim); }
+
+  .event-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+
+  .event-type {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .type-zeek { background: rgba(0,212,255,0.1); color: var(--cyan); }
+  .type-pan { background: rgba(255,102,0,0.15); color: var(--orange); }
+  .type-rigby { background: rgba(255,34,68,0.15); color: var(--red); }
+  .type-fg { background: rgba(153,51,255,0.15); color: var(--purple); }
+
+  .event-time { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+  .event-msg { font-size: 11px; color: var(--text); line-height: 1.4; margin-bottom: 4px; }
+  .event-ips { font-family: var(--mono); font-size: 10px; color: var(--cyan-dim); }
+  .event-ips span { color: var(--text-dim); }
+
+  .feed-controls {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid;
+    background: none;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 2px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .btn-trigger { border-color: var(--green-dim); color: var(--green); }
+  .btn-trigger:hover { background: rgba(0,255,136,0.1); box-shadow: 0 0 15px rgba(0,255,136,0.15); }
+  .btn-trigger:active { transform: scale(0.98); }
+  .btn-trigger.loading { border-color: var(--yellow); color: var(--yellow); animation: pulse 1s ease-in-out infinite; }
+
+  .btn-clear { border-color: var(--border2); color: var(--text-dim); }
+  .btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* MIDDLE COLUMN */
+  .workflow-steps { flex: 1; overflow-y: auto; padding: 10px; }
+
+  .workflow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding: 10px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    transition: all 0.3s;
+  }
+
+  .workflow-step.active { border-color: var(--cyan-dim); background: rgba(0,212,255,0.03); }
+  .workflow-step.done { border-color: var(--green-dim); }
+  .workflow-step.error { border-color: var(--red); }
+  .workflow-step.running { border-color: var(--yellow); animation: step-pulse 0.8s ease-in-out infinite; }
+
+  @keyframes step-pulse {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 10px rgba(255,204,0,0.2); }
+  }
+
+  .step-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+  }
+
+  .step-icon.done { background: rgba(0,255,136,0.1); border-color: var(--green-dim); }
+  .step-icon.running { background: rgba(255,204,0,0.1); border-color: var(--yellow); }
+  .step-icon.error { background: rgba(255,34,68,0.1); border-color: var(--red); }
+
+  .step-info { flex: 1; }
+  .step-name { font-family: var(--head); font-size: 11px; letter-spacing: 1px; color: var(--text); }
+  .step-detail { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+
+  .step-status {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .ss-ready { background: rgba(74,122,154,0.15); color: var(--text-dim); }
+  .ss-active { background: rgba(0,212,255,0.1); color: var(--cyan); }
+  .ss-done { background: rgba(0,255,136,0.1); color: var(--green); }
+  .ss-error { background: rgba(255,34,68,0.1); color: var(--red); }
+  .ss-running { background: rgba(255,204,0,0.1); color: var(--yellow); }
+
+  .last-run-info {
+    padding: 8px 10px;
+    background: var(--panel2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .last-run-info span { color: var(--cyan-dim); }
+
+  /* BLOCKED IPS */
+  .blocked-list { flex: 0 0 auto; max-height: 200px; overflow-y: auto; }
+
+  .blocked-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    animation: slide-in 0.3s ease-out;
+  }
+
+  .blocked-ip { font-family: var(--mono); font-size: 12px; color: var(--red); flex: 1; }
+  .blocked-fw { font-family: var(--mono); font-size: 9px; padding: 1px 5px; border: 1px solid; border-radius: 2px; }
+  .fw-pa { border-color: var(--orange); color: var(--orange); }
+  .blocked-time { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+  .blocked-reason { font-size: 10px; color: var(--text-dim); font-style: italic; }
+
+  .no-blocks {
+    padding: 20px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  /* RIGHT COLUMN - CHAT */
+  .chat-container { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-container::-webkit-scrollbar { width: 4px; }
+  .chat-container::-webkit-scrollbar-thumb { background: var(--border2); }
+
+  .chat-msg {
+    max-width: 85%;
+    animation: slide-in 0.3s ease-out;
+  }
+
+  .chat-msg.user { align-self: flex-end; }
+  .chat-msg.bot { align-self: flex-start; }
+
+  .msg-bubble {
+    padding: 8px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    line-height: 1.5;
+    border: 1px solid;
+  }
+
+  .user .msg-bubble {
+    background: rgba(0,212,255,0.08);
+    border-color: var(--cyan-dim);
+    color: var(--text);
+    text-align: right;
+  }
+
+  .bot .msg-bubble {
+    background: rgba(9,20,32,0.8);
+    border-color: var(--border2);
+    color: var(--text);
+  }
+
+  .msg-meta {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 3px;
+    letter-spacing: 1px;
+  }
+
+  .user .msg-meta { text-align: right; }
+
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 10px 12px;
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    width: fit-content;
+  }
+
+  .typing-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--cyan-dim);
+    border-radius: 50%;
+    animation: typing 1.2s ease-in-out infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  .chat-input-area {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .chat-tabs {
+    display: flex;
+    gap: 4px;
+  }
+
+  .chat-tab {
+    padding: 4px 12px;
+    border: 1px solid var(--border2);
+    background: none;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .chat-tab.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,212,255,0.08); }
+
+  .chat-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus { border-color: var(--cyan-dim); }
+  .chat-input::placeholder { color: var(--text-dim); }
+
+  .send-btn {
+    padding: 8px 16px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid var(--cyan-dim);
+    color: var(--cyan);
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .send-btn:hover { background: rgba(0,212,255,0.2); box-shadow: 0 0 15px rgba(0,212,255,0.2); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* CONFIG MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2,5,8,0.9);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-overlay.hidden { display: none; }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-top: 2px solid var(--cyan);
+    padding: 24px;
+    width: 480px;
+    border-radius: 3px;
+    box-shadow: 0 0 40px rgba(0,212,255,0.1);
+  }
+
+  .modal h2 {
+    font-family: var(--head);
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: var(--cyan);
+    margin-bottom: 20px;
+  }
+
+  .field-group { margin-bottom: 14px; }
+  .field-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+    display: block;
+    text-transform: uppercase;
+  }
+
+  .field-input {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 2px;
+    outline: none;
+  }
+
+  .field-input:focus { border-color: var(--cyan-dim); }
+
+  .modal-btns { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-save {
+    flex: 1;
+    padding: 10px;
+    background: rgba(0,255,136,0.1);
+    border: 1px solid var(--green-dim);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .modal-cancel {
+    padding: 10px 16px;
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border: 1px solid var(--green-dim);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 2px;
+    z-index: 300;
+    animation: toast-in 0.3s ease-out;
+    letter-spacing: 1px;
+  }
+
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hidden { display: none !important; }
+
+  /* RESPONSIVE */
+  @media (max-width: 1100px) {
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .main-grid { grid-template-columns: 1fr 1fr; }
+    .col:last-child { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">B</div>
+      <div>
+        <div class="logo-text">BLUE SOC</div>
+        <div class="logo-sub">AI SECURITY OPERATIONS CENTER — CIT 470 P8</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-pill" id="pill-n8n" onclick="testN8n()">
+        <div class="dot"></div>N8N LINKED
+      </div>
+      <div class="status-pill" id="pill-splunk" onclick="triggerScan()">
+        <div class="dot"></div>SPLUNK LIVE
+      </div>
+      <div class="status-pill online">
+        <div class="dot"></div>AI ONLINE
+      </div>
+      <div id="clock"></div>
+      <button class="config-btn" onclick="openConfig()">⚙ CONFIG</button>
+    </div>
+  </header>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">TOTAL EVENTS</div>
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-sub">Splunk ingested</div>
+    </div>
+    <div class="stat-card critical">
+      <div class="stat-label">CRITICAL ALERTS</div>
+      <div class="stat-value" id="stat-critical">—</div>
+      <div class="stat-sub">High severity</div>
+    </div>
+    <div class="stat-card warn">
+      <div class="stat-label">RIGBY ALERTS</div>
+      <div class="stat-value" id="stat-rigby">—</div>
+      <div class="stat-sub">Pattern matched</div>
+    </div>
+    <div class="stat-card blocked">
+      <div class="stat-label">IPs BLOCKED</div>
+      <div class="stat-value" id="stat-blocked">0</div>
+      <div class="stat-sub">PA + FortiGate</div>
+    </div>
+    <div class="stat-card sources">
+      <div class="stat-label">UNIQUE SOURCES</div>
+      <div class="stat-value" id="stat-sources">—</div>
+      <div class="stat-sub">Tracked</div>
+    </div>
+    <div class="stat-card runs">
+      <div class="stat-label">N8N RUNS</div>
+      <div class="stat-value" id="stat-runs">0</div>
+      <div class="stat-sub">Workflow executions</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT: LIVE EVENT FEED -->
+    <div class="col">
+      <div class="panel-header">
+        <div class="panel-title">⚡ LIVE EVENT FEED</div>
+        <div class="panel-badge badge-green" id="feed-status">● READY</div>
+      </div>
+      <div class="event-feed" id="event-feed">
+        <div style="padding:20px; text-align:center; font-family:var(--mono); font-size:10px; color:var(--text-dim);">
+          WAITING FOR SCAN...<br><br>Press TRIGGER N8N WORKFLOW to pull live Splunk data
+        </div>
+      </div>
+      <div class="feed-controls">
+        <button class="btn btn-trigger" id="trigger-btn" onclick="triggerScan()">▶ TRIGGER N8N WORKFLOW</button>
+        <button class="btn btn-clear" onclick="clearFeed()">↺ RESET</button>
+      </div>
+    </div>
+
+    <!-- MIDDLE: WORKFLOW STATUS + BLOCKED IPs -->
+    <div class="col">
+      <div class="panel-header">
+        <div class="panel-title">◎ N8N WORKFLOW STATUS</div>
+        <div class="panel-badge badge-cyan" id="workflow-status-badge">READY</div>
+      </div>
+
+      <div class="last-run-info">
+        <span>LAST RUN: <span id="last-run-time">NEVER</span></span>
+        <span>WEBHOOK: <span id="webhook-display" style="color:var(--text-dim); font-size:9px;">NOT SET</span></span>
+      </div>
+
+      <div class="workflow-steps" id="workflow-steps">
+        <!-- Steps generated by JS -->
+      </div>
+
+      <div class="panel-header" style="border-top:1px solid var(--border);">
+        <div class="panel-title">🔥 BLOCKED IPs</div>
+        <div class="panel-badge badge-red" id="blocked-count-badge">0 ACTIVE</div>
+      </div>
+
+      <div class="blocked-list" id="blocked-list">
+        <div class="no-blocks">NO ACTIVE BLOCKS</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: AI CHAT -->
+    <div class="col">
+      <div class="panel-header">
+        <div class="panel-title">🤖 AI SOC ANALYST</div>
+        <div class="panel-badge badge-cyan">@Joeallan_blue_bot</div>
+      </div>
+
+      <div class="chat-container" id="chat-container">
+        <div class="chat-msg bot">
+          <div class="msg-bubble">
+            🔐 <strong>BLUE SOC Online.</strong><br><br>
+            I'm your AI security analyst. Ask me about blocked IPs, Rigby alerts, critical threats, or run a live scan.<br><br>
+            <em style="color:var(--text-dim); font-size:10px;">Identity verification active. Please identify yourself.</em>
+          </div>
+          <div class="msg-meta">BLUE SOC AI · SYSTEM</div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-tabs">
+          <button class="chat-tab active" onclick="setTab('dashboard', this)">DASHBOARD</button>
+          <button class="chat-tab" onclick="setTab('telegram', this)">TELEGRAM</button>
+        </div>
+        <div class="chat-row">
+          <input
+            class="chat-input"
+            id="chat-input"
+            placeholder="Ask about events, IPs, threats..."
+            onkeydown="if(event.key==='Enter') sendChat()"
+          />
+          <button class="send-btn" id="send-btn" onclick="sendChat()">SEND ▶</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- CONFIG MODAL -->
+<div class="modal-overlay hidden" id="config-modal">
+  <div class="modal">
+    <h2>⚙ SYSTEM CONFIGURATION</h2>
+
+    <div class="field-group">
+      <label class="field-label">N8N SCAN WEBHOOK (Workflow 1)</label>
+      <input class="field-input" id="cfg-scan-webhook" placeholder="https://xxxx.ngrok-free.dev/webhook/blue-soc-trigger" />
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">N8N CHAT WEBHOOK (Workflow 2)</label>
+      <input class="field-input" id="cfg-chat-webhook" placeholder="https://xxxx.ngrok-free.dev/webhook/blue-soc-chat" />
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">TELEGRAM BOT TOKEN</label>
+      <input class="field-input" id="cfg-tg-token" value="8639286312:AAHDQnkXNtDAzXxVweGEciBpFQoZUA8mIB8" />
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">TELEGRAM CHAT ID</label>
+      <input class="field-input" id="cfg-tg-chatid" value="8610059806" />
+    </div>
+
+    <div class="modal-btns">
+      <button class="modal-save" onclick="saveConfig()">✓ SAVE & CONNECT</button>
+      <button class="modal-cancel" onclick="closeConfig()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── CONFIG ────────────────────────────────────────────────────────────────
+  let config = {
+    scanWebhook: localStorage.getItem('scanWebhook') || 'https://install-february-otherwise-pie.trycloudflare.com/webhook/blue-soc-trigger',
+    chatWebhook: localStorage.getItem('chatWebhook') || 'https://install-february-otherwise-pie.trycloudflare.com/webhook/blue-soc-chat',
+    tgToken: '8639286312:AAHDQnkXNtDAzXxVweGEciBpFQoZUA8mIB8',
+    tgChatId: '8610059806'
+  };
+
+  let state = {
+    events: [],
+    blockedIPs: [],
+    runs: 0,
+    lastRun: null,
+    chatMode: 'dashboard',
+    scanning: false
+  };
+
+  const STEPS = [
+    { id: 'trigger', icon: '⏰', name: 'SCHEDULE TRIGGER', detail: 'Every 5 minutes' },
+    { id: 'splunk', icon: '📡', name: 'QUERY SPLUNK', detail: 'index=* sourcetype=zeek* | head 20' },
+    { id: 'parse', icon: '{}', name: 'PARSE THREATS', detail: 'JavaScript — extract src/dst/type' },
+    { id: 'check', icon: '?', name: 'THREATS FOUND?', detail: 'IF no_threats != true' },
+    { id: 'gemini', icon: '🤖', name: 'GEMINI AI ANALYST', detail: 'Analyze & classify threats' },
+    { id: 'palo', icon: '🔥', name: 'PALO ALTO BLOCK', detail: 'API block at 157.201.22.58' },
+    { id: 'telegram', icon: '📱', name: 'TELEGRAM ALERT', detail: '@Joeallan_blue_bot' },
+    { id: 'dashboard', icon: '📊', name: 'UPDATE DASHBOARD', detail: 'POST to webhook.site' }
+  ];
+
+  // ─── CLOCK ─────────────────────────────────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ─── WORKFLOW STEPS ────────────────────────────────────────────────────────
+  function renderSteps(activeStep = -1, runningStep = -1, errorStep = -1) {
+    const container = document.getElementById('workflow-steps');
+    container.innerHTML = STEPS.map((s, i) => {
+      let cls = '';
+      let statusCls = 'ss-ready';
+      let statusTxt = 'READY';
+      let iconCls = '';
+
+      if (i < activeStep) { cls = 'done'; statusCls = 'ss-done'; statusTxt = '✓ DONE'; iconCls = 'done'; }
+      if (i === runningStep) { cls = 'running'; statusCls = 'ss-running'; statusTxt = '▶ RUNNING'; iconCls = 'running'; }
+      if (i === errorStep) { cls = 'error'; statusCls = 'ss-error'; statusTxt = '✗ ERROR'; iconCls = 'error'; }
+      if (i === activeStep && runningStep === -1) { cls = 'active'; statusCls = 'ss-active'; statusTxt = 'ACTIVE'; }
+
+      return `
+        <div class="workflow-step ${cls}">
+          <div class="step-icon ${iconCls}">${s.icon}</div>
+          <div class="step-info">
+            <div class="step-name">${s.name}</div>
+            <div class="step-detail">${s.detail}</div>
+          </div>
+          <div class="step-status ${statusCls}">${statusTxt}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  renderSteps();
+
+  // ─── TRIGGER SCAN ──────────────────────────────────────────────────────────
+  async function triggerScan() {
+    if (state.scanning) return;
+    state.scanning = true;
+
+    const btn = document.getElementById('trigger-btn');
+    btn.textContent = '⏳ SCANNING...';
+    btn.classList.add('loading');
+    document.getElementById('feed-status').textContent = '⚡ SCANNING';
+    document.getElementById('workflow-status-badge').textContent = 'RUNNING';
+
+    // animate through steps
+    let step = 0;
+    const stepInterval = setInterval(() => {
+      renderSteps(step, step);
+      step++;
+      if (step >= STEPS.length) { clearInterval(stepInterval); }
+    }, 1200);
+
+    try {
+      const res = await fetch(config.scanWebhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body: JSON.stringify({ source: 'dashboard', timestamp: new Date().toISOString() })
+      });
+
+      clearInterval(stepInterval);
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        renderSteps(STEPS.length, -1, -1); // all done
+        state.runs++;
+        state.lastRun = new Date();
+        document.getElementById('stat-runs').textContent = state.runs;
+        document.getElementById('last-run-time').textContent = state.lastRun.toLocaleTimeString();
+        document.getElementById('workflow-status-badge').textContent = 'COMPLETE';
+        document.getElementById('feed-status').textContent = '● LIVE';
+
+        // If n8n returned data, update the display
+        if (data.events || data.analysis) {
+          updateFromN8nData(data);
+        } else {
+          // Show a success event
+          addEvent({
+            event_type: 'n8n:trigger',
+            message: 'N8N workflow triggered successfully — check n8n for full results',
+            severity: 'info',
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        showToast('✓ Workflow triggered successfully');
+      } else {
+        throw new Error('HTTP ' + res.status);
+      }
+
+    } catch (err) {
+      clearInterval(stepInterval);
+      renderSteps(-1, -1, step > 0 ? step - 1 : 0);
+      document.getElementById('workflow-status-badge').textContent = 'ERROR';
+      document.getElementById('feed-status').textContent = '✗ ERROR';
+      showToast('✗ ' + (err.message.includes('fetch') ? 'Cannot reach n8n — is ngrok running?' : err.message), true);
+      addEvent({
+        event_type: 'system:error',
+        message: 'Workflow trigger failed: ' + err.message + '. Check ngrok is running.',
+        severity: 'high',
+        timestamp: new Date().toISOString()
+      });
+    } finally {
+      state.scanning = false;
+      btn.textContent = '▶ TRIGGER N8N WORKFLOW';
+      btn.classList.remove('loading');
+    }
+  }
+
+  // ─── HANDLE N8N DATA ───────────────────────────────────────────────────────
+  function updateFromN8nData(data) {
+    if (data.events && Array.isArray(data.events)) {
+      data.events.forEach(e => addEvent(e));
+      document.getElementById('stat-total').textContent = data.events.length;
+
+      const critical = data.events.filter(e => e.severity === 'critical' || e.severity === 'high').length;
+      const rigby = data.events.filter(e => (e.event_type || '').includes('rigby')).length;
+      const sources = [...new Set(data.events.map(e => e.source_ip).filter(Boolean))].length;
+
+      document.getElementById('stat-critical').textContent = critical;
+      document.getElementById('stat-rigby').textContent = rigby;
+      document.getElementById('stat-sources').textContent = sources;
+    }
+
+    if (data.blocked_ip && data.blocked_ip !== 'unknown') {
+      addBlock({
+        ip: data.blocked_ip,
+        reason: data.analysis?.activity || 'AI-identified threat',
+        threat: data.analysis?.threat_level || 'high',
+        time: new Date().toLocaleTimeString()
+      });
+    }
+
+    if (data.analysis) {
+      const a = data.analysis;
+      addChatMsg('bot',
+        `🚨 <strong>SCAN COMPLETE</strong><br>
+        Threat Level: <strong style="color:var(--red)">${a.threat_level || 'unknown'}</strong><br>
+        Offending IP: <code style="color:var(--cyan)">${a.offending_ip || 'none'}</code><br>
+        Activity: ${a.activity || 'N/A'}<br>
+        Action: ${a.recommendation === 'block' ? '🔥 BLOCKED on Palo Alto' : '👁 Monitoring'}`,
+        'BLUE SOC AI'
+      );
+    }
+  }
+
+  // ─── ADD EVENT CARD ────────────────────────────────────────────────────────
+  function addEvent(event) {
+    state.events.unshift(event);
+    const feed = document.getElementById('event-feed');
+
+    if (feed.querySelector('div[style]')) feed.innerHTML = '';
+
+    const sev = event.severity || 'info';
+    const typeRaw = (event.event_type || 'unknown').toLowerCase();
+    const typeCls = typeRaw.includes('zeek') ? 'type-zeek' :
+                    typeRaw.includes('pan') || typeRaw.includes('pa') ? 'type-pan' :
+                    typeRaw.includes('rigby') ? 'type-rigby' :
+                    typeRaw.includes('fg') || typeRaw.includes('forti') ? 'type-fg' : 'type-zeek';
+
+    const card = document.createElement('div');
+    card.className = `event-card ${sev}`;
+    card.innerHTML = `
+      <div class="event-top">
+        <div class="event-type ${typeCls}">${event.event_type || 'unknown'}</div>
+        <div class="event-time">${new Date(event.timestamp || Date.now()).toLocaleTimeString()}</div>
+      </div>
+      <div class="event-msg">${event.message || 'No details'}</div>
+      ${event.source_ip && event.source_ip !== 'unknown' ? `
+        <div class="event-ips">
+          ${event.source_ip} <span>→</span> ${event.dest_ip || '?'}
+        </div>` : ''}
+    `;
+
+    feed.insertBefore(card, feed.firstChild);
+  }
+
+  // ─── ADD BLOCKED IP ────────────────────────────────────────────────────────
+  function addBlock(block) {
+    state.blockedIPs.unshift(block);
+    const list = document.getElementById('blocked-list');
+    const noBlocks = list.querySelector('.no-blocks');
+    if (noBlocks) noBlocks.remove();
+
+    const entry = document.createElement('div');
+    entry.className = 'blocked-entry';
+    entry.innerHTML = `
+      <div class="blocked-ip">${block.ip}</div>
+      <div class="blocked-fw fw-pa">PA</div>
+      <div style="flex:1">
+        <div class="blocked-reason">${block.reason || ''}</div>
+      </div>
+      <div class="blocked-time">${block.time}</div>
+    `;
+    list.insertBefore(entry, list.firstChild);
+
+    const count = state.blockedIPs.length;
+    document.getElementById('stat-blocked').textContent = count;
+    document.getElementById('blocked-count-badge').textContent = count + ' ACTIVE';
+  }
+
+  // ─── CHAT ──────────────────────────────────────────────────────────────────
+  function setTab(mode, btn) {
+    state.chatMode = mode;
+    document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('chat-input').placeholder =
+      mode === 'telegram' ? 'Sending via Telegram bot...' : 'Ask about events, IPs, threats...';
+  }
+
+  async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    const btn = document.getElementById('send-btn');
+    btn.disabled = true;
+    input.value = '';
+
+    addChatMsg('user', msg, 'YOU');
+    showTyping();
+
+    try {
+      const res = await fetch(config.chatWebhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body: JSON.stringify({
+          message: msg,
+          source: 'dashboard',
+          context: {
+            total_events: state.events.length,
+            blocked_ips: state.blockedIPs.map(b => b.ip),
+            n8n_runs: state.runs,
+            last_run: state.lastRun
+          }
+        })
+      });
+
+      hideTyping();
+
+      if (res.ok) {
+        const data = await res.json();
+        const reply = data.response || data.output || data.message || JSON.stringify(data);
+        addChatMsg('bot', reply, 'BLUE SOC AI');
+      } else {
+        throw new Error('HTTP ' + res.status);
+      }
+
+    } catch (err) {
+      hideTyping();
+      addChatMsg('bot',
+        '⚠️ Cannot reach AI agent. Make sure n8n and ngrok are running.<br><small style="color:var(--text-dim)">' + err.message + '</small>',
+        'SYSTEM ERROR'
+      );
+    } finally {
+      btn.disabled = false;
+      input.focus();
+    }
+  }
+
+  function addChatMsg(role, text, meta) {
+    const container = document.getElementById('chat-container');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + role;
+    div.innerHTML = `
+      <div class="msg-bubble">${text}</div>
+      <div class="msg-meta">${meta} · ${new Date().toLocaleTimeString()}</div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  let typingEl = null;
+  function showTyping() {
+    const container = document.getElementById('chat-container');
+    typingEl = document.createElement('div');
+    typingEl.className = 'chat-msg bot';
+    typingEl.innerHTML = `
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    `;
+    container.appendChild(typingEl);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function hideTyping() {
+    if (typingEl) { typingEl.remove(); typingEl = null; }
+  }
+
+  // ─── CLEAR FEED ────────────────────────────────────────────────────────────
+  function clearFeed() {
+    state.events = [];
+    document.getElementById('event-feed').innerHTML = `
+      <div style="padding:20px; text-align:center; font-family:var(--mono); font-size:10px; color:var(--text-dim);">
+        FEED CLEARED — Press TRIGGER to run a new scan
+      </div>`;
+    renderSteps();
+    document.getElementById('workflow-status-badge').textContent = 'READY';
+    document.getElementById('feed-status').textContent = '● READY';
+  }
+
+  // ─── CONFIG MODAL ──────────────────────────────────────────────────────────
+  function openConfig() {
+    document.getElementById('cfg-scan-webhook').value = config.scanWebhook;
+    document.getElementById('cfg-chat-webhook').value = config.chatWebhook;
+    document.getElementById('cfg-tg-token').value = config.tgToken;
+    document.getElementById('cfg-tg-chatid').value = config.tgChatId;
+    document.getElementById('config-modal').classList.remove('hidden');
+  }
+
+  function closeConfig() {
+    document.getElementById('config-modal').classList.add('hidden');
+  }
+
+  function saveConfig() {
+    config.scanWebhook = document.getElementById('cfg-scan-webhook').value.trim() || config.scanWebhook;
+    config.chatWebhook = document.getElementById('cfg-chat-webhook').value.trim() || config.chatWebhook;
+    config.tgToken = document.getElementById('cfg-tg-token').value.trim() || config.tgToken;
+    config.tgChatId = document.getElementById('cfg-tg-chatid').value.trim() || config.tgChatId;
+
+    localStorage.setItem('scanWebhook', config.scanWebhook);
+    localStorage.setItem('chatWebhook', config.chatWebhook);
+
+    document.getElementById('webhook-display').textContent =
+      config.scanWebhook.replace('https://', '').substring(0, 30) + '...';
+
+    closeConfig();
+    showToast('✓ Config saved');
+    updatePills();
+  }
+
+  // ─── PILLS STATUS ──────────────────────────────────────────────────────────
+  function updatePills() {
+    const hasWebhook = config.scanWebhook && config.scanWebhook.includes('ngrok');
+    document.getElementById('pill-n8n').className = 'status-pill ' + (hasWebhook ? 'online' : 'offline');
+    document.getElementById('pill-splunk').className = 'status-pill online';
+    document.getElementById('webhook-display').textContent =
+      config.scanWebhook.replace('https://', '').substring(0, 28) + '...';
+  }
+
+  async function testN8n() {
+    showToast('Testing n8n connection...');
+    try {
+      await fetch(config.scanWebhook, { method: 'OPTIONS', mode: 'no-cors' });
+      showToast('✓ n8n reachable');
+    } catch {
+      showToast('✗ Cannot reach n8n', true);
+    }
+  }
+
+  // ─── TOAST ─────────────────────────────────────────────────────────────────
+  function showToast(msg, isError = false) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+
+    const t = document.createElement('div');
+    t.className = 'toast' + (isError ? ' error' : '');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  // ─── INIT ──────────────────────────────────────────────────────────────────
+  updatePills();
+
+  // Listen for n8n data pushed to dashboard
+  window.receiveN8nData = function(data) {
+    updateFromN8nData(data);
+  };
+</script>
+</body>
+</html>
