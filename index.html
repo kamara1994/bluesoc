@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLUE SOC — AI Security Operations Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;800&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void:#00091e;
+  --deep:#000d28;
+  --panel:rgba(0,18,36,0.75);
+  --panel-border:rgba(0,180,255,0.15);
+  --holo:rgba(0,212,255,0.06);
+  --cyan:#00d4ff;
+  --cyan2:#00f0ff;
+  --blue:#0066ff;
+  --green:#00ff9d;
+  --red:#ff1744;
+  --orange:#ff6d00;
+  --yellow:#ffd600;
+  --purple:#7c4dff;
+  --text:#b8e8ff;
+  --text-dim:#2a6a8a;
+  --mono:'Share Tech Mono',monospace;
+  --ui:'Exo 2',sans-serif;
+  --head:'Orbitron',monospace;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100vh;overflow:hidden;background:var(--void)}
+body{font-family:var(--ui);color:var(--text);position:relative}
+
+/* ═══════════════════════════════
+   HOLOGRAPHIC BACKGROUND SYSTEM
+═══════════════════════════════ */
+#holo-bg{position:fixed;inset:0;z-index:0}
+
+/* Deep space gradient */
+.space-bg{
+  position:fixed;inset:0;z-index:0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 0%, rgba(0,40,120,0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 0% 100%, rgba(0,20,80,0.4) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 60%, rgba(0,60,160,0.3) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 30% at 30% 40%, rgba(0,80,200,0.15) 0%, transparent 50%),
+    linear-gradient(160deg, #00091e 0%, #000d28 40%, #000820 70%, #00091e 100%);
+}
+
+/* Animated circuit grid */
+.circuit-grid{
+  position:fixed;inset:0;z-index:1;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size:50px 50px;
+  animation:grid-scroll 30s linear infinite;
+}
+@keyframes grid-scroll{from{background-position:0 0}to{background-position:50px 50px}}
+
+/* Scanline overlay */
+.scanline{
+  position:fixed;top:-100%;left:0;right:0;height:3px;
+  background:linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.08) 20%, rgba(0,212,255,0.15) 50%, rgba(0,212,255,0.08) 80%, transparent 100%);
+  animation:scanline 8s linear infinite;z-index:3;pointer-events:none;
+}
+@keyframes scanline{from{top:-3px}to{top:100vh}}
+
+/* Rotating rings in background */
+.bg-ring{
+  position:fixed;border-radius:50%;border:1px solid;
+  animation:ring-rotate linear infinite;pointer-events:none;z-index:2;
+}
+.bg-ring-1{
+  width:600px;height:600px;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  border-color:rgba(0,212,255,0.04);
+  animation-duration:60s;
+}
+.bg-ring-2{
+  width:900px;height:900px;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  border-color:rgba(0,100,255,0.03);
+  animation-duration:90s;animation-direction:reverse;
+}
+.bg-ring-3{
+  width:1200px;height:1200px;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  border-color:rgba(0,212,255,0.02);
+  animation-duration:120s;
+}
+@keyframes ring-rotate{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+/* Ambient glow orbs */
+.glow-orb{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:1;animation:orb-pulse 8s ease-in-out infinite}
+.glow-orb-1{width:400px;height:400px;top:-10%;left:-5%;background:rgba(0,80,200,0.12);animation-delay:0s}
+.glow-orb-2{width:300px;height:300px;bottom:-10%;right:-5%;background:rgba(0,150,255,0.1);animation-delay:3s}
+.glow-orb-3{width:200px;height:200px;top:40%;right:20%;background:rgba(0,200,255,0.06);animation-delay:5s}
+@keyframes orb-pulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.1)}}
+
+/* Canvas for particles */
+#particle-canvas{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0.6}
+
+.wrap{position:relative;z-index:10;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ═══════════════════════════
+   HEADER
+═══════════════════════════ */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 24px;flex-shrink:0;
+  background:rgba(0,8,20,0.85);
+  border-bottom:1px solid rgba(0,212,255,0.12);
+  backdrop-filter:blur(20px);
+  position:relative;
+}
+/* Glowing header bottom line */
+header::after{
+  content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(0,212,255,0.6) 30%,rgba(0,212,255,1) 50%,rgba(0,212,255,0.6) 70%,transparent 100%);
+  animation:header-line 4s ease-in-out infinite;
+}
+@keyframes header-line{0%,100%{opacity:0.4}50%{opacity:1}}
+
+.logo{display:flex;align-items:center;gap:14px}
+
+/* Holographic shield logo */
+.logo-shield{
+  position:relative;width:42px;height:42px;
+  display:flex;align-items:center;justify-content:center;
+}
+.shield-ring{
+  position:absolute;width:100%;height:100%;border-radius:50%;
+  border:1.5px solid rgba(0,212,255,0.4);
+  animation:shield-spin 8s linear infinite;
+}
+.shield-ring-2{
+  position:absolute;width:75%;height:75%;border-radius:50%;
+  border:1px solid rgba(0,212,255,0.25);
+  animation:shield-spin 5s linear infinite reverse;
+}
+.shield-core{
+  font-family:var(--head);font-size:14px;font-weight:900;color:var(--cyan);
+  text-shadow:0 0 15px var(--cyan),0 0 30px rgba(0,212,255,0.5);
+  z-index:1;
+}
+@keyframes shield-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+.logo-text-group{}
+.logo-text{
+  font-family:var(--head);font-size:20px;font-weight:900;
+  color:transparent;
+  background:linear-gradient(90deg,#00d4ff,#00f0ff,#0066ff,#00d4ff);
+  background-size:200% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  animation:logo-shimmer 4s linear infinite;
+  letter-spacing:4px;
+  filter:drop-shadow(0 0 8px rgba(0,212,255,0.4));
+}
+@keyframes logo-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+.logo-sub{font-family:var(--mono);font-size:8px;color:var(--text-dim);letter-spacing:3px;margin-top:1px}
+
+.header-status{display:flex;gap:8px;align-items:center}
+
+/* Holographic pills */
+.holo-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 13px;border-radius:30px;
+  font-family:var(--mono);font-size:9px;letter-spacing:1.5px;
+  cursor:pointer;position:relative;overflow:hidden;
+  background:rgba(0,212,255,0.04);
+  border:1px solid rgba(0,212,255,0.15);
+  backdrop-filter:blur(20px);
+  color:var(--cyan);
+  transition:all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+  box-shadow:0 0 15px rgba(0,212,255,0.05),inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.holo-pill::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent);
+}
+.holo-pill:hover{
+  background:rgba(0,212,255,0.1);border-color:rgba(0,212,255,0.4);
+  transform:translateY(-2px) scale(1.05);
+  box-shadow:0 6px 25px rgba(0,212,255,0.2),inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.holo-pill.green{color:var(--green);border-color:rgba(0,255,157,0.15);background:rgba(0,255,157,0.04)}
+.holo-pill.green::before{background:linear-gradient(90deg,transparent,rgba(0,255,157,0.5),transparent)}
+.holo-pill.green:hover{background:rgba(0,255,157,0.1);border-color:rgba(0,255,157,0.4);box-shadow:0 6px 25px rgba(0,255,157,0.2)}
+.pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 2s step-end infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+
+#clock{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:2px;text-shadow:0 0 10px rgba(0,212,255,0.5)}
+
+.cfg-btn{
+  background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);
+  color:rgba(0,212,255,0.6);padding:5px 14px;
+  font-family:var(--mono);font-size:9px;cursor:pointer;
+  border-radius:30px;letter-spacing:1px;
+  backdrop-filter:blur(20px);transition:all 0.3s ease;
+  position:relative;overflow:hidden;
+}
+.cfg-btn::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.3),transparent)}
+.cfg-btn:hover{color:var(--cyan);border-color:rgba(0,212,255,0.3);background:rgba(0,212,255,0.08);transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,212,255,0.15)}
+
+/* ═══════════════════════════
+   STATS ROW — Holographic cards
+═══════════════════════════ */
+.stats-row{
+  display:grid;grid-template-columns:repeat(6,1fr);
+  gap:1px;flex-shrink:0;
+  background:rgba(0,212,255,0.05);
+  border-bottom:1px solid rgba(0,212,255,0.08);
+}
+.stat-card{
+  background:rgba(0,8,20,0.85);
+  padding:12px 16px;position:relative;overflow:hidden;
+  cursor:pointer;transition:all 0.3s ease;
+  backdrop-filter:blur(10px);
+}
+/* Top accent bar */
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent,var(--cyan)),transparent);
+  animation:bar-pulse 3s ease-in-out infinite;
+}
+/* Holographic inner glow */
+.stat-card::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% -20%, rgba(var(--accent-rgb,0,212,255),0.08) 0%, transparent 70%);
+}
+/* Corner circuit marks */
+.stat-card .corner{
+  position:absolute;width:10px;height:10px;
+  border-color:var(--accent,var(--cyan));border-style:solid;
+  opacity:0.4;
+}
+.stat-card .corner.tl{top:4px;left:4px;border-width:1px 0 0 1px}
+.stat-card .corner.br{bottom:4px;right:4px;border-width:0 1px 1px 0}
+@keyframes bar-pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+.stat-card:hover{background:rgba(0,20,45,0.95);transform:translateY(-1px)}
+.stat-card:hover::before{opacity:1;animation:none}
+.stat-label{font-family:var(--mono);font-size:8px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;position:relative;z-index:1}
+.stat-value{
+  font-family:var(--head);font-size:26px;font-weight:900;
+  color:var(--accent,var(--cyan));line-height:1;
+  text-shadow:0 0 20px var(--accent,var(--cyan)),0 0 40px rgba(var(--accent-rgb,0,212,255),0.3);
+  transition:all 0.5s;position:relative;z-index:1;
+}
+.stat-sub{font-family:var(--mono);font-size:8px;color:var(--text-dim);margin-top:3px;letter-spacing:1px;position:relative;z-index:1}
+.stat-card.c{--accent:var(--red);--accent-rgb:255,23,68}
+.stat-card.w{--accent:var(--orange);--accent-rgb:255,109,0}
+.stat-card.b{--accent:var(--yellow);--accent-rgb:255,214,0}
+.stat-card.s{--accent:var(--purple);--accent-rgb:124,77,255}
+.stat-card.r{--accent:var(--green);--accent-rgb:0,255,157}
+
+/* ═══════════════════════════
+   MAIN GRID
+═══════════════════════════ */
+.main-grid{
+  display:grid;grid-template-columns:1fr 1.2fr 1fr;
+  gap:1px;background:rgba(0,212,255,0.04);
+  flex:1;min-height:0;
+}
+.col{
+  background:rgba(0,12,35,0.6);
+  display:flex;flex-direction:column;overflow:hidden;
+  backdrop-filter:blur(20px);
+  position:relative;
+}
+/* Holographic edge glow on panels */
+.col::before{
+  content:'';position:absolute;top:0;left:0;bottom:0;width:1px;
+  background:linear-gradient(180deg,transparent,rgba(0,212,255,0.2),rgba(0,212,255,0.4),rgba(0,212,255,0.2),transparent);
+  animation:edge-pulse 4s ease-in-out infinite;
+}
+@keyframes edge-pulse{0%,100%{opacity:0.3}50%{opacity:0.8}}
+
+/* Panel headers */
+.panel-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 14px;
+  background:rgba(0,12,30,0.9);
+  border-bottom:1px solid rgba(0,212,255,0.1);
+  flex-shrink:0;position:relative;
+}
+.panel-hdr::after{
+  content:'';position:absolute;bottom:0;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent);
+  animation:header-line 3s ease-in-out infinite;
+}
+.panel-title{
+  font-family:var(--head);font-size:9px;letter-spacing:3px;
+  color:var(--cyan);text-transform:uppercase;
+  text-shadow:0 0 10px rgba(0,212,255,0.5);
+}
+
+/* ── HOLOGRAPHIC BADGES ── */
+.holo-badge{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  padding:3px 12px;border-radius:30px;
+  position:relative;overflow:hidden;
+  backdrop-filter:blur(15px);
+}
+.holo-badge::before{content:'';position:absolute;top:0;left:5%;right:5%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)}
+.holo-badge.g{background:rgba(0,255,157,0.07);border:1px solid rgba(0,255,157,0.2);color:var(--green)}
+.holo-badge.c{background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.2);color:var(--cyan)}
+.holo-badge.r{background:rgba(255,23,68,0.07);border:1px solid rgba(255,23,68,0.2);color:var(--red)}
+.holo-badge.o{background:rgba(255,109,0,0.07);border:1px solid rgba(255,109,0,0.2);color:var(--orange)}
+
+/* ── EVENT FEED ── */
+.event-feed{flex:1;overflow-y:auto;padding:8px}
+.event-feed::-webkit-scrollbar{width:3px}
+.event-feed::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.2);border-radius:2px}
+
+.event-card{
+  background:rgba(0,20,40,0.7);
+  border:1px solid rgba(0,212,255,0.08);
+  border-left:2px solid;
+  padding:8px 10px;margin-bottom:5px;
+  border-radius:2px;
+  animation:evt-appear 0.4s ease-out;
+  backdrop-filter:blur(5px);
+  transition:all 0.2s ease;
+  cursor:pointer;position:relative;overflow:hidden;
+}
+.event-card::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(var(--evt-rgb,0,212,255),0.03) 0%,transparent 30%)}
+.event-card:hover{background:rgba(0,30,60,0.9);transform:translateX(3px);box-shadow:inset 4px 0 0 var(--evt-color,var(--cyan))}
+@keyframes evt-appear{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+.event-card.critical{border-left-color:var(--red);--evt-color:var(--red);--evt-rgb:255,23,68}
+.event-card.high{border-left-color:var(--orange);--evt-color:var(--orange);--evt-rgb:255,109,0}
+.event-card.medium{border-left-color:var(--yellow);--evt-color:var(--yellow);--evt-rgb:255,214,0}
+.event-card.low{border-left-color:var(--green);--evt-color:var(--green);--evt-rgb:0,255,157}
+.event-card.info{border-left-color:rgba(0,212,255,0.4)}
+.evt-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.evt-type{font-family:var(--mono);font-size:8px;padding:1px 6px;border-radius:10px;letter-spacing:1px;text-transform:uppercase}
+.type-zeek{background:rgba(0,212,255,0.12);color:var(--cyan);border:1px solid rgba(0,212,255,0.2)}
+.type-pan{background:rgba(255,109,0,0.12);color:var(--orange);border:1px solid rgba(255,109,0,0.2)}
+.type-rigby{background:rgba(255,23,68,0.12);color:var(--red);border:1px solid rgba(255,23,68,0.2)}
+.evt-time{font-family:var(--mono);font-size:8px;color:var(--text-dim)}
+.evt-msg{font-size:10px;color:var(--text);line-height:1.4;margin-bottom:3px}
+.evt-ips{font-family:var(--mono);font-size:9px;color:rgba(0,212,255,0.5)}
+
+/* ── HOLO BUTTONS ── */
+.feed-ctrl{padding:8px;border-top:1px solid rgba(0,212,255,0.08);display:flex;gap:6px;flex-shrink:0;background:rgba(0,8,20,0.6)}
+
+.holo-btn{
+  flex:1;padding:9px;
+  font-family:var(--mono);font-size:9px;letter-spacing:1.5px;
+  cursor:pointer;border-radius:4px;text-transform:uppercase;
+  position:relative;overflow:hidden;
+  transition:all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+/* Holographic sheen sweep on hover */
+.holo-btn::before{
+  content:'';position:absolute;
+  top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);
+  transition:left 0.5s ease;
+}
+.holo-btn:hover::before{left:100%}
+/* Top edge highlight */
+.holo-btn::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)}
+.holo-btn:hover{transform:translateY(-2px)}
+.holo-btn:active{transform:translateY(1px) scale(0.98)}
+
+.btn-go{
+  background:rgba(0,255,157,0.07);
+  border:1px solid rgba(0,255,157,0.25);
+  color:var(--green);
+}
+.btn-go:hover{background:rgba(0,255,157,0.13);border-color:rgba(0,255,157,0.5);box-shadow:0 6px 30px rgba(0,255,157,0.2),0 0 15px rgba(0,255,157,0.1)}
+.btn-go.loading{border-color:rgba(255,214,0,0.3);color:var(--yellow);background:rgba(255,214,0,0.06);animation:loading-pulse 1s ease-in-out infinite}
+@keyframes loading-pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+.btn-rst{
+  background:rgba(255,255,255,0.02);
+  border:1px solid rgba(0,212,255,0.1);
+  color:var(--text-dim);
+  flex:0 0 auto;padding:9px 14px;
+}
+.btn-rst:hover{border-color:rgba(255,23,68,0.3);color:var(--red);box-shadow:0 6px 20px rgba(255,23,68,0.1)}
+
+/* ── WORKFLOW STEPS ── */
+.wf-steps{flex:1;overflow-y:auto;padding:8px}
+.wf-step{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:5px;padding:9px 10px;
+  background:rgba(0,15,35,0.7);
+  border:1px solid rgba(0,212,255,0.06);
+  border-radius:2px;
+  transition:all 0.3s ease;
+  position:relative;overflow:hidden;
+}
+.wf-step::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--step-color,rgba(0,212,255,0.2));transition:all 0.3s}
+.wf-step:hover{background:rgba(0,25,55,0.9);border-color:rgba(0,212,255,0.12)}
+.wf-step.done{border-color:rgba(0,255,157,0.1);--step-color:var(--green)}
+.wf-step.done::before{box-shadow:0 0 8px var(--green)}
+.wf-step.running{border-color:rgba(255,214,0,0.15);--step-color:var(--yellow);animation:wf-pulse 0.8s ease-in-out infinite}
+@keyframes wf-pulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 15px rgba(255,214,0,0.1)}}
+.wf-icon{width:26px;height:26px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.1)}
+.wf-icon.done{background:rgba(0,255,157,0.08);border-color:rgba(0,255,157,0.2)}
+.wf-icon.running{background:rgba(255,214,0,0.08);border-color:rgba(255,214,0,0.2)}
+.wf-info{flex:1}
+.wf-name{font-family:var(--head);font-size:9px;letter-spacing:1px;color:var(--text)}
+.wf-detail{font-family:var(--mono);font-size:8px;color:var(--text-dim);margin-top:1px}
+.wf-status{font-family:var(--mono);font-size:8px;padding:2px 8px;border-radius:10px;flex-shrink:0;backdrop-filter:blur(5px)}
+.ss-ready{background:rgba(42,106,138,0.12);color:var(--text-dim);border:1px solid rgba(42,106,138,0.2)}
+.ss-done{background:rgba(0,255,157,0.08);color:var(--green);border:1px solid rgba(0,255,157,0.2)}
+.ss-running{background:rgba(255,214,0,0.08);color:var(--yellow);border:1px solid rgba(255,214,0,0.2)}
+
+.last-run{
+  padding:6px 14px;background:rgba(0,8,20,0.8);
+  border-top:1px solid rgba(0,212,255,0.06);border-bottom:1px solid rgba(0,212,255,0.06);
+  font-family:var(--mono);font-size:8px;color:var(--text-dim);
+  flex-shrink:0;display:flex;justify-content:space-between;letter-spacing:1px;
+}
+
+/* ── BLOCKED IPs ── */
+.blocked-list{flex:0 0 auto;max-height:160px;overflow-y:auto}
+.blocked-entry{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 14px;border-bottom:1px solid rgba(0,212,255,0.05);
+  animation:evt-appear 0.4s ease-out;
+  transition:all 0.2s;
+}
+.blocked-entry:hover{background:rgba(255,23,68,0.04)}
+.blocked-ip{font-family:var(--mono);font-size:11px;color:var(--red);flex:1;text-shadow:0 0 8px rgba(255,23,68,0.4)}
+.blocked-fw{font-family:var(--mono);font-size:8px;padding:1px 6px;border:1px solid rgba(255,109,0,0.3);border-radius:10px;color:var(--orange);background:rgba(255,109,0,0.06)}
+.blocked-time{font-family:var(--mono);font-size:8px;color:var(--text-dim)}
+.blocked-reason{font-size:9px;color:var(--text-dim);font-style:italic}
+.no-blocks{padding:20px;text-align:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px}
+
+/* ═══════════════════════
+   AI CHAT — Holographic
+═══════════════════════ */
+.chat-box{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.chat-box::-webkit-scrollbar{width:3px}
+.chat-box::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.15)}
+
+.chat-msg{max-width:88%;animation:msg-in 0.35s ease-out}
+.chat-msg.user{align-self:flex-end}
+.chat-msg.bot{align-self:flex-start}
+@keyframes msg-in{from{opacity:0;transform:scale(0.92) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+.msg-bub{
+  padding:9px 14px;font-size:11px;line-height:1.6;
+  border:1px solid;position:relative;overflow:hidden;
+  backdrop-filter:blur(10px);
+}
+.msg-bub::before{content:'';position:absolute;top:0;left:5%;right:5%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent)}
+
+.user .msg-bub{
+  background:rgba(0,100,255,0.08);
+  border-color:rgba(0,100,255,0.2);
+  color:var(--text);
+  border-radius:10px 10px 3px 10px;
+  text-align:right;
+}
+.bot .msg-bub{
+  background:rgba(0,20,45,0.8);
+  border-color:rgba(0,212,255,0.12);
+  color:var(--text);
+  border-radius:10px 10px 10px 3px;
+}
+.msg-meta{font-family:var(--mono);font-size:8px;color:var(--text-dim);margin-top:4px;letter-spacing:1px}
+.user .msg-meta{text-align:right}
+
+.typing-ind{display:flex;gap:4px;padding:10px 14px;background:rgba(0,20,45,0.8);border:1px solid rgba(0,212,255,0.12);border-radius:10px 10px 10px 3px;width:fit-content;backdrop-filter:blur(10px)}
+.t-dot{width:4px;height:4px;background:var(--cyan);border-radius:50%;animation:tdot 1.2s ease-in-out infinite;box-shadow:0 0 5px var(--cyan)}
+.t-dot:nth-child(2){animation-delay:0.2s}.t-dot:nth-child(3){animation-delay:0.4s}
+@keyframes tdot{0%,60%,100%{transform:translateY(0);opacity:0.3}30%{transform:translateY(-5px);opacity:1}}
+
+/* ── CHAT INPUT AREA ── */
+.chat-in-area{
+  padding:8px;
+  border-top:1px solid rgba(0,212,255,0.08);
+  display:flex;flex-direction:column;gap:8px;
+  flex-shrink:0;
+  background:rgba(0,5,15,0.7);
+}
+
+/* ══════════════════════════════════════
+   COLORLESS LIQUID GLASS TABS
+   Glass has NO color — only the text does
+══════════════════════════════════════ */
+.chat-tabs{
+  display:flex;gap:0;padding:3px;
+  border-radius:30px;
+  /* Truly colorless — just glass refraction */
+  background:rgba(255,255,255,0.025);
+  border:1px solid rgba(255,255,255,0.07);
+  backdrop-filter:blur(40px) saturate(200%);
+  -webkit-backdrop-filter:blur(40px) saturate(200%);
+  position:relative;overflow:hidden;
+  box-shadow:
+    0 4px 24px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.3);
+}
+/* Pure white specular — no color tint */
+.chat-tabs::before{
+  content:'';position:absolute;
+  top:0;left:6%;right:6%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.35),rgba(255,255,255,0.15),transparent);
+  z-index:2;
+}
+.chat-tabs::after{content:none}
+
+.chat-tab{
+  flex:1;padding:6px 16px;
+  border:none;background:transparent;
+  font-family:var(--mono);font-size:9px;
+  color:rgba(255,255,255,0.3);cursor:pointer;
+  border-radius:25px;letter-spacing:1.5px;text-transform:uppercase;
+  position:relative;overflow:hidden;z-index:1;
+  transition:color 0.25s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+/* Liquid fill — colorless */
+.chat-tab::before{
+  content:'';position:absolute;inset:0;
+  border-radius:25px;
+  background:transparent;
+  border:1px solid transparent;
+  transition:all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+/* Top specular on pill */
+.chat-tab::after{
+  content:'';position:absolute;
+  top:1px;left:8%;right:8%;height:35%;
+  background:transparent;
+  border-radius:25px 25px 0 0;
+  transition:background 0.3s ease;
+  pointer-events:none;z-index:2;
+}
+/* Hover — colorless glass, tab text glows its own color */
+.chat-tab:hover{
+  transform:scale(1.05) translateY(-1px);
+}
+.chat-tab:hover::before{
+  background:rgba(255,255,255,0.05);
+  border-color:rgba(255,255,255,0.1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.chat-tab:active{transform:scale(0.96) translateY(1px)}
+
+/* DASHBOARD tab = cyan when active */
+.chat-tab:first-child.active{ color:var(--cyan); text-shadow:0 0 10px rgba(0,212,255,0.6); }
+.chat-tab:first-child:hover:not(.active){ color:rgba(0,212,255,0.7); }
+
+/* TELEGRAM tab = green when active */
+.chat-tab:last-child.active{ color:var(--green); text-shadow:0 0 10px rgba(0,255,157,0.6); }
+.chat-tab:last-child:hover:not(.active){ color:rgba(0,255,157,0.7); }
+
+/* Active pill — colorless glass */
+.chat-tab.active{
+  transform:scale(1.04);
+}
+.chat-tab.active::before{
+  background:rgba(255,255,255,0.07);
+  border-color:rgba(255,255,255,0.12);
+  box-shadow:
+    0 2px 16px rgba(0,0,0,0.3),
+    0 0 0 1px rgba(255,255,255,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    inset 0 -1px 0 rgba(0,0,0,0.1);
+}
+.chat-tab.active::after{
+  background:linear-gradient(180deg,rgba(255,255,255,0.12) 0%,rgba(255,255,255,0.03) 60%,transparent 100%);
+}
+
+.chat-row{display:flex;gap:6px}
+.chat-in{
+  flex:1;
+  background:rgba(0,212,255,0.03);
+  border:1px solid rgba(0,212,255,0.1);
+  color:var(--text);padding:8px 14px;
+  font-family:var(--mono);font-size:10px;
+  border-radius:4px;outline:none;
+  backdrop-filter:blur(10px);
+  transition:all 0.3s ease;
+}
+.chat-in:focus{border-color:rgba(0,212,255,0.35);background:rgba(0,212,255,0.05);box-shadow:0 0 20px rgba(0,212,255,0.08),inset 0 1px 0 rgba(0,212,255,0.08)}
+.chat-in::placeholder{color:var(--text-dim)}
+
+.send-btn{
+  padding:8px 18px;
+  background:rgba(0,212,255,0.08);
+  border:1px solid rgba(0,212,255,0.2);
+  color:var(--cyan);font-family:var(--mono);font-size:9px;
+  cursor:pointer;border-radius:4px;letter-spacing:1px;
+  position:relative;overflow:hidden;
+  backdrop-filter:blur(10px);
+  transition:all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.send-btn::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent)}
+.send-btn::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.08),transparent);transition:left 0.4s ease}
+.send-btn:hover::after{left:100%}
+.send-btn:hover{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.4);transform:translateY(-1px);box-shadow:0 6px 25px rgba(0,212,255,0.2),0 0 0 1px rgba(0,212,255,0.05)}
+.send-btn:active{transform:scale(0.96)}
+.send-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none}
+
+/* ── MODAL ── */
+.modal-ov{position:fixed;inset:0;background:rgba(0,5,15,0.92);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+.modal-ov.hidden{display:none!important}
+.modal{
+  background:rgba(0,12,30,0.98);
+  border:1px solid rgba(0,212,255,0.2);
+  border-top:2px solid var(--cyan);
+  padding:28px;width:500px;border-radius:4px;
+  box-shadow:0 0 60px rgba(0,212,255,0.1),0 0 120px rgba(0,50,200,0.1),0 30px 80px rgba(0,0,0,0.8);
+  position:relative;
+}
+.modal::before{content:'';position:absolute;top:0;left:5%;right:5%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent)}
+.modal h2{font-family:var(--head);font-size:13px;letter-spacing:3px;color:var(--cyan);margin-bottom:22px;text-shadow:0 0 15px rgba(0,212,255,0.4)}
+.f-grp{margin-bottom:14px}
+.f-lbl{font-family:var(--mono);font-size:8px;color:var(--text-dim);letter-spacing:2px;margin-bottom:5px;display:block;text-transform:uppercase}
+.f-in{width:100%;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.12);color:var(--text);padding:8px 12px;font-family:var(--mono);font-size:10px;border-radius:3px;outline:none;transition:all 0.2s}
+.f-in:focus{border-color:rgba(0,212,255,0.4);box-shadow:0 0 15px rgba(0,212,255,0.08)}
+.modal-btns{display:flex;gap:10px;margin-top:22px}
+.modal-save{flex:1;padding:10px;background:rgba(0,255,157,0.07);border:1px solid rgba(0,255,157,0.2);color:var(--green);font-family:var(--mono);font-size:10px;cursor:pointer;border-radius:3px;letter-spacing:1px;transition:all 0.2s}
+.modal-save:hover{background:rgba(0,255,157,0.13);transform:translateY(-1px)}
+.modal-cancel{padding:10px 16px;background:none;border:1px solid rgba(0,212,255,0.1);color:var(--text-dim);font-family:var(--mono);font-size:10px;cursor:pointer;border-radius:3px;transition:all 0.2s}
+.modal-cancel:hover{border-color:rgba(255,23,68,0.3);color:var(--red)}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:20px;right:20px;
+  padding:10px 20px;
+  background:rgba(0,12,30,0.95);
+  border:1px solid rgba(0,255,157,0.25);
+  color:var(--green);font-family:var(--mono);font-size:10px;
+  border-radius:30px;z-index:300;
+  animation:toast-in 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  letter-spacing:1px;
+  backdrop-filter:blur(20px);
+  box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(0,255,157,0.08);
+  position:relative;overflow:hidden;
+}
+.toast::before{content:'';position:absolute;top:0;left:5%;right:5%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,255,157,0.4),transparent)}
+.toast.error{border-color:rgba(255,23,68,0.25);color:var(--red);box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(255,23,68,0.08)}
+@keyframes toast-in{from{opacity:0;transform:translateY(14px) scale(0.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- BACKGROUND SYSTEM -->
+<div class="space-bg"></div>
+<div class="circuit-grid"></div>
+<div class="bg-ring bg-ring-1"></div>
+<div class="bg-ring bg-ring-2"></div>
+<div class="bg-ring bg-ring-3"></div>
+<div class="glow-orb glow-orb-1"></div>
+<div class="glow-orb glow-orb-2"></div>
+<div class="glow-orb glow-orb-3"></div>
+<div class="scanline"></div>
+<canvas id="particle-canvas"></canvas>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-shield">
+        <div class="shield-ring"></div>
+        <div class="shield-ring-2"></div>
+        <div class="shield-core">B</div>
+      </div>
+      <div class="logo-text-group">
+        <div class="logo-text">BLUE SOC</div>
+        <div class="logo-sub">AI SECURITY OPERATIONS CENTER — BYUI CIT 470 P8 — JOSEPH ALLAN KAMARA</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="holo-pill green"><div class="pill-dot"></div>N8N LINKED</div>
+      <div class="holo-pill green"><div class="pill-dot"></div>SPLUNK LIVE</div>
+      <div class="holo-pill green"><div class="pill-dot"></div>AI ONLINE</div>
+      <div class="holo-pill" id="poll-badge"><div class="pill-dot"></div>LIVE</div>
+      <div id="clock"></div>
+      <button class="cfg-btn" onclick="openConfig()">⚙ CONFIG</button>
+    </div>
+  </header>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">TOTAL EVENTS</div><div class="stat-value" id="s-total">0</div><div class="stat-sub">Splunk ingested</div></div>
+    <div class="stat-card c"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">CRITICAL ALERTS</div><div class="stat-value" id="s-crit">0</div><div class="stat-sub">High severity</div></div>
+    <div class="stat-card w"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">RIGBY ALERTS</div><div class="stat-value" id="s-rigby">0</div><div class="stat-sub">Pattern matched</div></div>
+    <div class="stat-card b"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">IPs BLOCKED</div><div class="stat-value" id="s-blocked">0</div><div class="stat-sub">PA + FortiGate</div></div>
+    <div class="stat-card s"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">UNIQUE SOURCES</div><div class="stat-value" id="s-sources">0</div><div class="stat-sub">Tracked</div></div>
+    <div class="stat-card r"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">N8N RUNS</div><div class="stat-value" id="s-runs">0</div><div class="stat-sub">Workflow executions</div></div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT: EVENTS -->
+    <div class="col">
+      <div class="panel-hdr">
+        <div class="panel-title">⚡ LIVE EVENT FEED</div>
+        <div class="holo-badge g" id="feed-status">● POLLING</div>
+      </div>
+      <div class="event-feed" id="event-feed">
+        <div style="padding:24px;text-align:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;line-height:2.5">
+          ◈ LIVE POLLING JSONBIN ◈<br>EVENTS APPEAR AUTOMATICALLY<br>WHEN N8N WORKFLOW RUNS
+        </div>
+      </div>
+      <div class="feed-ctrl">
+        <button class="holo-btn btn-go" id="trig-btn" onclick="triggerScan()">▶ TRIGGER N8N WORKFLOW</button>
+        <button class="holo-btn btn-rst" onclick="clearFeed()">↺</button>
+      </div>
+    </div>
+
+    <!-- MIDDLE: WORKFLOW + BLOCKED -->
+    <div class="col">
+      <div class="panel-hdr">
+        <div class="panel-title">◎ N8N WORKFLOW STATUS</div>
+        <div class="holo-badge c" id="wf-status">READY</div>
+      </div>
+      <div class="last-run">
+        <span>LAST RUN: <span id="last-run" style="color:rgba(0,212,255,0.5)">NEVER</span></span>
+        <span style="color:rgba(0,255,157,0.5)">◈ JSONBin Live Sync</span>
+      </div>
+      <div class="wf-steps" id="wf-steps"></div>
+      <div class="panel-hdr" style="border-top:1px solid rgba(0,212,255,0.06)">
+        <div class="panel-title">🔥 BLOCKED IPs</div>
+        <div class="holo-badge r" id="blocked-badge">0 ACTIVE</div>
+      </div>
+      <div class="blocked-list" id="blocked-list">
+        <div class="no-blocks">◈ NO ACTIVE BLOCKS ◈</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: AI CHAT -->
+    <div class="col">
+      <div class="panel-hdr">
+        <div class="panel-title">🤖 AI SOC ANALYST</div>
+        <div class="holo-badge c">@Joeallan_blue_bot</div>
+      </div>
+      <div class="chat-box" id="chat-box">
+        <div class="chat-msg bot">
+          <div class="msg-bub">
+            🔐 <strong style="color:var(--cyan)">BLUE SOC SYSTEM ONLINE.</strong><br><br>
+            I am your AI security analyst. I monitor this network in real time and analyze threats with Gemini AI.<br><br>
+            Ask me about blocked IPs, Rigby pattern detections, critical threats, or run a live scan.<br><br>
+            <span style="color:var(--text-dim);font-size:9px;font-family:var(--mono)">⚠ IDENTITY VERIFICATION ACTIVE — PLEASE IDENTIFY YOURSELF</span>
+          </div>
+          <div class="msg-meta">BLUE SOC AI · SYSTEM INIT</div>
+        </div>
+      </div>
+      <div class="chat-in-area">
+        <!-- LIQUID GLASS TABS -->
+        <div class="chat-tabs">
+          <button class="chat-tab active" onclick="setTab('dashboard',this)">DASHBOARD</button>
+          <button class="chat-tab" onclick="setTab('telegram',this)">TELEGRAM</button>
+        </div>
+        <div class="chat-row">
+          <input class="chat-in" id="chat-in" placeholder="Identify yourself or ask about threats..." onkeydown="if(event.key==='Enter')sendChat()"/>
+          <button class="send-btn" id="send-btn" onclick="sendChat()">SEND ▶</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-ov hidden" id="cfg-modal">
+  <div class="modal">
+    <h2>⚙ SYSTEM CONFIGURATION</h2>
+    <div class="f-grp"><label class="f-lbl">N8N SCAN WEBHOOK</label><input class="f-in" id="cfg-scan"/></div>
+    <div class="f-grp"><label class="f-lbl">N8N CHAT WEBHOOK</label><input class="f-in" id="cfg-chat"/></div>
+    <div class="f-grp"><label class="f-lbl">JSONBIN BIN ID</label><input class="f-in" id="cfg-bin"/></div>
+    <div class="f-grp"><label class="f-lbl">JSONBIN MASTER KEY</label><input class="f-in" id="cfg-key"/></div>
+    <div class="modal-btns">
+      <button class="modal-save" onclick="saveConfig()">✓ SAVE & CONNECT</button>
+      <button class="modal-cancel" onclick="closeConfig()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── PARTICLE NETWORK ──────────────────────────────────────────────────────────
+const cvs = document.getElementById('particle-canvas');
+const ctx2 = cvs.getContext('2d');
+function resizeCvs(){cvs.width=window.innerWidth;cvs.height=window.innerHeight;}
+resizeCvs(); window.addEventListener('resize',resizeCvs);
+
+const pts = Array.from({length:60},()=>({
+  x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
+  vx:(Math.random()-0.5)*0.4, vy:(Math.random()-0.5)*0.4,
+  r:Math.random()*1.5+0.3, a:Math.random()*0.5+0.1
+}));
+
+function animPts(){
+  ctx2.clearRect(0,0,cvs.width,cvs.height);
+  pts.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0||p.x>cvs.width) p.vx*=-1;
+    if(p.y<0||p.y>cvs.height) p.vy*=-1;
+    ctx2.beginPath(); ctx2.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx2.fillStyle=`rgba(0,180,255,${p.a})`; ctx2.fill();
+  });
+  // Connection lines
+  for(let i=0;i<pts.length;i++){
+    for(let j=i+1;j<pts.length;j++){
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+      if(d<130){
+        ctx2.beginPath();
+        ctx2.moveTo(pts[i].x,pts[i].y); ctx2.lineTo(pts[j].x,pts[j].y);
+        ctx2.strokeStyle=`rgba(0,180,255,${0.08*(1-d/130)})`;
+        ctx2.lineWidth=0.5; ctx2.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(animPts);
+}
+animPts();
+
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const SCAN_URL   = 'https://status-customers-ceremony-favourite.trycloudflare.com/webhook/blue-soc-trigger';
+const CHAT_URL   = 'https://status-customers-ceremony-favourite.trycloudflare.com/webhook/blue-soc-chat';
+const BIN_ID     = '69cb7c73aaba882197adb0cf';
+const MASTER_KEY = '$2a$10$VhY8svRChLrOJcUZ/dcyvOMNpPlQjLcb5vRu4HC8g8.C6JOuc0P9C';
+const JSONBIN    = 'https://api.jsonbin.io/v3/b/'+BIN_ID;
+
+let cfg={scan:localStorage.getItem('scan')||SCAN_URL, chat:localStorage.getItem('chat')||CHAT_URL, binId:BIN_ID, binKey:MASTER_KEY};
+let st={events:[],blocks:[],runs:0,lastAnalysis:null,scanning:false,mode:'dashboard'};
+
+const STEPS=[
+  {i:'⏰',n:'SCHEDULE TRIGGER',d:'Every 5 minutes'},
+  {i:'📡',n:'QUERY SPLUNK',d:'index=* sourcetype=zeek* | head 20'},
+  {i:'{}',n:'PARSE THREATS',d:'Extract src/dst/type/severity'},
+  {i:'?',n:'THREATS FOUND?',d:'IF events exist → continue'},
+  {i:'🤖',n:'GEMINI AI ANALYST',d:'Analyze & classify threats'},
+  {i:'🔥',n:'PALO ALTO BLOCK',d:'Block at 157.201.22.58'},
+  {i:'📱',n:'TELEGRAM ALERT',d:'@Joeallan_blue_bot'},
+  {i:'📊',n:'UPDATE JSONBIN',d:'Live data → dashboard'}
+];
+
+// Clock
+function tick(){document.getElementById('clock').textContent=new Date().toISOString().replace('T',' ').substring(0,19)+' UTC';}
+setInterval(tick,1000);tick();
+
+// Steps
+function renderSteps(done=0,running=-1){
+  document.getElementById('wf-steps').innerHTML=STEPS.map((s,i)=>{
+    let cls='',sc='ss-ready',st2='READY',ic='';
+    if(i<done){cls='done';sc='ss-done';st2='✓ DONE';ic='done';}
+    if(i===running){cls='running';sc='ss-running';st2='▶ RUN';ic='running';}
+    return`<div class="wf-step ${cls}"><div class="wf-icon ${ic}">${s.i}</div><div class="wf-info"><div class="wf-name">${s.n}</div><div class="wf-detail">${s.d}</div></div><div class="wf-status ${sc}">${st2}</div></div>`;
+  }).join('');
+}
+renderSteps();
+
+// Poll JSONBin
+async function poll(){
+  try{
+    const r=await fetch(JSONBIN+'/latest',{headers:{'X-Master-Key':cfg.binKey,'X-Bin-Meta':'false'}});
+    if(!r.ok)return;
+    const raw=await r.json(); const d=raw.record||raw;
+    const evts=d.events||[],blks=d.blocked_ips||[];
+    document.getElementById('s-total').textContent=evts.length;
+    document.getElementById('s-runs').textContent=d.runs||0;
+    if(d.last_run)document.getElementById('last-run').textContent=new Date(d.last_run).toLocaleTimeString();
+    document.getElementById('s-crit').textContent=evts.filter(e=>e.severity==='critical'||e.severity==='high').length;
+    document.getElementById('s-rigby').textContent=evts.filter(e=>(e.event_type||'').toLowerCase().includes('rigby')).length;
+    document.getElementById('s-sources').textContent=[...new Set(evts.map(e=>e.source_ip).filter(Boolean))].length;
+    if(evts.length>st.events.length){evts.slice(st.events.length).forEach(e=>addEvt(e));st.events=evts;}
+    if(blks.length>st.blocks.length){
+      blks.slice(st.blocks.length).forEach(b=>addBlk(b));st.blocks=blks;
+      document.getElementById('s-blocked').textContent=blks.length;
+      document.getElementById('blocked-badge').textContent=blks.length+' ACTIVE';
+    }
+    if(d.analysis&&JSON.stringify(d.analysis)!==JSON.stringify(st.lastAnalysis)){
+      st.lastAnalysis=d.analysis;
+      const a=typeof d.analysis==='string'?JSON.parse(d.analysis):d.analysis;
+      if(a&&a.threat_level){
+        addMsg('bot',`🚨 <strong style="color:var(--red)">THREAT DETECTED & BLOCKED</strong><br>Level: <strong style="color:var(--red)">${a.threat_level.toUpperCase()}</strong><br>IP: <code style="color:var(--cyan);font-family:var(--mono)">${a.offending_ip||'none'}</code><br>Activity: ${a.activity||'N/A'}<br><span style="color:var(--green)">🔥 BLOCKED on Palo Alto 157.201.22.58</span>`,'BLUE SOC AI');
+        renderSteps(STEPS.length);
+        document.getElementById('wf-status').textContent='COMPLETE';
+      }
+    }
+    document.getElementById('poll-badge').innerHTML='<div class="pill-dot"></div>LIVE';
+  }catch(e){document.getElementById('poll-badge').innerHTML='<div class="pill-dot"></div>ERR';}
+}
+poll(); setInterval(poll,5000);
+
+// Trigger
+async function triggerScan(){
+  if(st.scanning)return; st.scanning=true;
+  const btn=document.getElementById('trig-btn');
+  btn.textContent='⏳ SCANNING...'; btn.classList.add('loading');
+  document.getElementById('feed-status').textContent='⚡ SCANNING';
+  document.getElementById('wf-status').textContent='RUNNING';
+  let s=0; const iv=setInterval(()=>{renderSteps(s,s);s++;if(s>=STEPS.length)clearInterval(iv);},1000);
+  try{
+    const r=await fetch(cfg.scan,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'dashboard',timestamp:new Date().toISOString()})});
+    clearInterval(iv);
+    if(r.ok){showToast('✓ WORKFLOW TRIGGERED');document.getElementById('feed-status').textContent='● POLLING';}
+    else throw new Error('HTTP '+r.status);
+  }catch(e){clearInterval(iv);renderSteps(0,-1);document.getElementById('wf-status').textContent='ERROR';showToast('✗ CANNOT REACH N8N',true);}
+  finally{st.scanning=false;btn.textContent='▶ TRIGGER N8N WORKFLOW';btn.classList.remove('loading');}
+}
+
+function addEvt(e){
+  const feed=document.getElementById('event-feed');
+  if(feed.querySelector('div[style]'))feed.innerHTML='';
+  const sev=e.severity||'info';
+  const t=(e.event_type||'unknown').toLowerCase();
+  const tc=t.includes('zeek')?'type-zeek':t.includes('pan')||t.includes('pa')?'type-pan':t.includes('rigby')?'type-rigby':'type-zeek';
+  const card=document.createElement('div');card.className=`event-card ${sev}`;
+  card.innerHTML=`<div class="evt-top"><div class="evt-type ${tc}">${e.event_type||'unknown'}</div><div class="evt-time">${new Date(e.timestamp||Date.now()).toLocaleTimeString()}</div></div><div class="evt-msg">${e.message||'No details'}</div>${e.source_ip&&e.source_ip!=='unknown'?`<div class="evt-ips">${e.source_ip} ──→ ${e.dest_ip||'?'}</div>`:''}`;
+  feed.insertBefore(card,feed.firstChild);
+}
+
+function addBlk(b){
+  const list=document.getElementById('blocked-list');
+  const nb=list.querySelector('.no-blocks');if(nb)nb.remove();
+  const ip=typeof b==='string'?b:(b.ip||b);
+  const reason=typeof b==='object'?(b.reason||'AI-identified threat'):'Blocked';
+  const time=typeof b==='object'?(b.time||new Date().toLocaleTimeString()):new Date().toLocaleTimeString();
+  const entry=document.createElement('div');entry.className='blocked-entry';
+  entry.innerHTML=`<div class="blocked-ip">${ip}</div><div class="blocked-fw">PA</div><div style="flex:1"><div class="blocked-reason">${reason}</div></div><div class="blocked-time">${time}</div>`;
+  list.insertBefore(entry,list.firstChild);
+}
+
+function setTab(mode,btn){
+  st.mode=mode;
+  document.querySelectorAll('.chat-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('chat-in').placeholder=mode==='telegram'?'Sending via Telegram @Joeallan_blue_bot...':'Identify yourself or ask about threats...';
+}
+
+async function sendChat(){
+  const input=document.getElementById('chat-in');
+  const msg=input.value.trim();if(!msg)return;
+  const btn=document.getElementById('send-btn');btn.disabled=true;input.value='';
+  addMsg('user',msg,'YOU'); showTyping();
+  try{
+    const r=await fetch(cfg.chat,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:msg,source:'dashboard',sessionId:'dashboard-main',
+        context:{total_events:st.events.length,blocked_ips:st.blocks,n8n_runs:st.runs}})});
+    hideTyping();
+    if(r.ok){
+      const txt=await r.text();let reply='No response.';
+      if(txt&&txt.trim()){try{const d=JSON.parse(txt);reply=d.reply||d.response||d.output||d.message||txt;}catch(e){reply=txt;}}
+      addMsg('bot',reply,'BLUE SOC AI');
+    }else throw new Error('HTTP '+r.status);
+  }catch(e){hideTyping();addMsg('bot','⚠ CANNOT REACH AI AGENT<br><span style="color:var(--text-dim);font-size:9px">'+e.message+'</span>','SYSTEM ERROR');}
+  finally{btn.disabled=false;input.focus();}
+}
+
+function addMsg(role,text,meta){
+  const c=document.getElementById('chat-box');
+  const d=document.createElement('div');d.className='chat-msg '+role;
+  d.innerHTML=`<div class="msg-bub">${text}</div><div class="msg-meta">${meta} · ${new Date().toLocaleTimeString()}</div>`;
+  c.appendChild(d);c.scrollTop=c.scrollHeight;
+}
+
+let typEl=null;
+function showTyping(){const c=document.getElementById('chat-box');typEl=document.createElement('div');typEl.className='chat-msg bot';typEl.innerHTML='<div class="typing-ind"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div>';c.appendChild(typEl);c.scrollTop=c.scrollHeight;}
+function hideTyping(){if(typEl){typEl.remove();typEl=null;}}
+
+function clearFeed(){st.events=[];document.getElementById('event-feed').innerHTML='<div style="padding:24px;text-align:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px">◈ FEED CLEARED ◈</div>';renderSteps();document.getElementById('wf-status').textContent='READY';}
+
+function openConfig(){document.getElementById('cfg-scan').value=cfg.scan;document.getElementById('cfg-chat').value=cfg.chat;document.getElementById('cfg-bin').value=cfg.binId;document.getElementById('cfg-key').value=cfg.binKey;document.getElementById('cfg-modal').classList.remove('hidden');}
+function closeConfig(){document.getElementById('cfg-modal').classList.add('hidden');}
+function saveConfig(){cfg.scan=document.getElementById('cfg-scan').value.trim()||cfg.scan;cfg.chat=document.getElementById('cfg-chat').value.trim()||cfg.chat;cfg.binId=document.getElementById('cfg-bin').value.trim()||cfg.binId;cfg.binKey=document.getElementById('cfg-key').value.trim()||cfg.binKey;localStorage.setItem('scan',cfg.scan);localStorage.setItem('chat',cfg.chat);closeConfig();showToast('✓ CONFIG SAVED');}
+
+function showToast(msg,err=false){const ex=document.querySelector('.toast');if(ex)ex.remove();const t=document.createElement('div');t.className='toast'+(err?' error':'');t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3500);}
+</script>
+</body>
+</html>
