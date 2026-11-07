@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BLUE SOC — AI Security Operations Center</title>
+<title>BLUE SOC | Security Operations Dashboard</title>
+<meta name="description" content="BLUE SOC enterprise security laboratory dashboard, threat detections, response workflows and a clearly labeled demo mode.">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;800&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -642,6 +643,51 @@ header::after{
 .toast.error{border-color:rgba(255,23,68,0.25);color:var(--red);box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(255,23,68,0.08)}
 @keyframes toast-in{from{opacity:0;transform:translateY(14px) scale(0.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 .hidden{display:none!important}
+
+/* BLUE SOC accessibility, layout and connection-state polish */
+.connection-note {
+  padding:8px 24px;flex-shrink:0;
+  font:10px var(--mono);letter-spacing:.5px;color:#f4c987;
+  background:rgba(255,172,56,.08);border-bottom:1px solid rgba(255,172,56,.15)
+}
+.config-desc {font:11px/1.7 var(--mono);color:#9cc8df;margin:0 0 17px}
+.empty-state {padding:25px 15px;text-align:center;font:11px/1.65 var(--mono);color:#8caac0}
+.chat-msg .msg-bub {white-space:pre-wrap;overflow-wrap:anywhere}
+button:disabled,input:disabled {opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible {
+  outline:2px solid var(--cyan);outline-offset:3px
+}
+.event-card,.blocked-entry {overflow-wrap:anywhere}
+.feed-ctrl {flex-wrap:wrap}
+.header-status .holo-pill {cursor:default}
+@media (max-width:1199px) {
+  html,body {height:auto;min-height:100vh;overflow:auto}
+  .wrap {height:auto;min-height:100vh;overflow:visible}
+  header {padding:16px;gap:14px;flex-wrap:wrap}
+  .header-status {flex-wrap:wrap}
+  .stats-row {grid-template-columns:repeat(3,minmax(0,1fr))}
+  .main-grid {grid-template-columns:repeat(2,minmax(0,1fr));min-height:920px}
+  .col {min-height:450px}
+  .col:last-child {grid-column:1/-1;min-height:450px}
+  .event-feed,.chat-box {min-height:300px;max-height:420px}
+}
+@media (max-width:700px) {
+  header {padding:14px 12px}
+  .logo-sub {font-size:7px;letter-spacing:1px}
+  .header-status {gap:6px}
+  .stats-row {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat-card {padding:13px}
+  .main-grid {display:flex;flex-direction:column;min-height:0}
+  .col {min-height:430px}
+  .col:last-child {min-height:470px}
+  .event-feed,.chat-box {min-height:260px;max-height:390px}
+  .connection-note {padding:10px 13px}
+  .modal {width:calc(100vw - 28px);padding:20px;max-height:90vh;overflow-y:auto}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after {animation-duration:.01ms!important;transition-duration:.01ms!important}
+  .scanline,.bg-ring,.glow-orb {display:none!important}
+}
 </style>
 </head>
 <body>
@@ -674,10 +720,10 @@ header::after{
       </div>
     </div>
     <div class="header-status">
-      <div class="holo-pill green"><div class="pill-dot"></div>N8N LINKED</div>
-      <div class="holo-pill green"><div class="pill-dot"></div>SPLUNK LIVE</div>
-      <div class="holo-pill green"><div class="pill-dot"></div>AI ONLINE</div>
-      <div class="holo-pill" id="poll-badge"><div class="pill-dot"></div>LIVE</div>
+      <div class="holo-pill" id="n8n-status"><div class="pill-dot"></div>N8N UNVERIFIED</div>
+      <div class="holo-pill" id="splunk-status"><div class="pill-dot"></div>SPLUNK UNVERIFIED</div>
+      <div class="holo-pill" id="ai-status"><div class="pill-dot"></div>AI OFFLINE</div>
+      <div class="holo-pill" id="poll-badge"><div class="pill-dot"></div>DEMO DATA</div>
       <div id="clock"></div>
       <button class="cfg-btn" onclick="openConfig()">⚙ CONFIG</button>
     </div>
@@ -685,31 +731,34 @@ header::after{
 
   <!-- STATS -->
   <div class="stats-row">
-    <div class="stat-card"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">TOTAL EVENTS</div><div class="stat-value" id="s-total">0</div><div class="stat-sub">Splunk ingested</div></div>
+    <div class="stat-card"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">TOTAL EVENTS</div><div class="stat-value" id="s-total">0</div><div class="stat-sub">Source records</div></div>
     <div class="stat-card c"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">CRITICAL ALERTS</div><div class="stat-value" id="s-crit">0</div><div class="stat-sub">High severity</div></div>
     <div class="stat-card w"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">RIGBY ALERTS</div><div class="stat-value" id="s-rigby">0</div><div class="stat-sub">Pattern matched</div></div>
-    <div class="stat-card b"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">IPs BLOCKED</div><div class="stat-value" id="s-blocked">0</div><div class="stat-sub">PA + FortiGate</div></div>
+    <div class="stat-card b"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">IPs BLOCKED</div><div class="stat-value" id="s-blocked">0</div><div class="stat-sub">Upstream reported</div></div>
     <div class="stat-card s"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">UNIQUE SOURCES</div><div class="stat-value" id="s-sources">0</div><div class="stat-sub">Tracked</div></div>
     <div class="stat-card r"><div class="corner tl"></div><div class="corner br"></div><div class="stat-label">N8N RUNS</div><div class="stat-value" id="s-runs">0</div><div class="stat-sub">Workflow executions</div></div>
   </div>
 
+  <div class="connection-note" id="connection-note" role="status">DEMO MODE · Sample events. Private telemetry is not connected.</div>
   <!-- MAIN GRID -->
   <div class="main-grid">
 
     <!-- LEFT: EVENTS -->
     <div class="col">
       <div class="panel-hdr">
-        <div class="panel-title">⚡ LIVE EVENT FEED</div>
-        <div class="holo-badge g" id="feed-status">● POLLING</div>
+        <div class="panel-title">⚡ SECURITY EVENT FEED</div>
+        <div class="holo-badge c" id="feed-status">● EXAMPLE EVENTS</div>
       </div>
       <div class="event-feed" id="event-feed">
         <div style="padding:24px;text-align:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;line-height:2.5">
-          ◈ LIVE POLLING JSONBIN ◈<br>EVENTS APPEAR AUTOMATICALLY<br>WHEN N8N WORKFLOW RUNS
+          ◈ DEMO / DISCONNECTED ◈<br>ADMIN LOGIN ENABLES<br>PRIVATE TELEMETRY
         </div>
       </div>
       <div class="feed-ctrl">
-        <button class="holo-btn btn-go" id="trig-btn" onclick="triggerScan()">▶ TRIGGER N8N WORKFLOW</button>
-        <button class="holo-btn btn-rst" onclick="clearFeed()">↺</button>
+        <button class="holo-btn btn-go" id="trig-btn" onclick="triggerScan()" disabled title="Requires authenticated admin session">▶ REQUEST N8N WORKFLOW</button>
+        <button class="holo-btn btn-rst" onclick="poll()" title="Refresh authenticated telemetry">↻</button>
+        <button class="holo-btn btn-rst" onclick="loadDemo()" title="Show clearly labeled sample events">DEMO</button>
+        <button class="holo-btn btn-rst" onclick="clearFeed()" title="Clear only the current view">CLEAR</button>
       </div>
     </div>
 
@@ -717,19 +766,19 @@ header::after{
     <div class="col">
       <div class="panel-hdr">
         <div class="panel-title">◎ N8N WORKFLOW STATUS</div>
-        <div class="holo-badge c" id="wf-status">READY</div>
+        <div class="holo-badge c" id="wf-status">DEMO</div>
       </div>
       <div class="last-run">
         <span>LAST RUN: <span id="last-run" style="color:rgba(0,212,255,0.5)">NEVER</span></span>
-        <span style="color:rgba(0,255,157,0.5)">◈ JSONBin Live Sync</span>
+        <span style="color:rgba(0,255,157,0.5)">◈ Authenticated data source</span>
       </div>
       <div class="wf-steps" id="wf-steps"></div>
       <div class="panel-hdr" style="border-top:1px solid rgba(0,212,255,0.06)">
-        <div class="panel-title">🔥 BLOCKED IPs</div>
-        <div class="holo-badge r" id="blocked-badge">0 ACTIVE</div>
+        <div class="panel-title">🔥 REPORTED IP BLOCKS</div>
+        <div class="holo-badge r" id="blocked-badge">0 REPORTED</div>
       </div>
       <div class="blocked-list" id="blocked-list">
-        <div class="no-blocks">◈ NO ACTIVE BLOCKS ◈</div>
+        <div class="no-blocks">◈ NO BLOCKS REPORTED ◈</div>
       </div>
     </div>
 
@@ -737,16 +786,11 @@ header::after{
     <div class="col">
       <div class="panel-hdr">
         <div class="panel-title">🤖 AI SOC ANALYST</div>
-        <div class="holo-badge c">@Joeallan_blue_bot</div>
+        <div class="holo-badge c">ADMIN-ONLY WORKFLOW</div>
       </div>
       <div class="chat-box" id="chat-box">
         <div class="chat-msg bot">
-          <div class="msg-bub">
-            🔐 <strong style="color:var(--cyan)">BLUE SOC SYSTEM ONLINE.</strong><br><br>
-            I am your AI security analyst. I monitor this network in real time and analyze threats with Gemini AI.<br><br>
-            Ask me about blocked IPs, Rigby pattern detections, critical threats, or run a live scan.<br><br>
-            <span style="color:var(--text-dim);font-size:9px;font-family:var(--mono)">⚠ IDENTITY VERIFICATION ACTIVE — PLEASE IDENTIFY YOURSELF</span>
-          </div>
+          <div class="msg-bub">BLUE SOC demo is ready. Authenticate to use private lab telemetry and the configured AI workflow.</div>
           <div class="msg-meta">BLUE SOC AI · SYSTEM INIT</div>
         </div>
       </div>
@@ -757,8 +801,8 @@ header::after{
           <button class="chat-tab" onclick="setTab('telegram',this)">TELEGRAM</button>
         </div>
         <div class="chat-row">
-          <input class="chat-in" id="chat-in" placeholder="Identify yourself or ask about threats..." onkeydown="if(event.key==='Enter')sendChat()"/>
-          <button class="send-btn" id="send-btn" onclick="sendChat()">SEND ▶</button>
+          <input class="chat-in" id="chat-in" placeholder="Connect as administrator to use AI chat" maxlength="2000" disabled onkeydown="if(event.key==='Enter')sendChat()" aria-label="AI analyst message"/>
+          <button class="send-btn" id="send-btn" onclick="sendChat()" disabled>SEND ▶</button>
         </div>
       </div>
     </div>
@@ -767,210 +811,22 @@ header::after{
 </div>
 
 <!-- MODAL -->
-<div class="modal-ov hidden" id="cfg-modal">
+<div class="modal-ov hidden" id="cfg-modal" role="dialog" aria-modal="true" aria-labelledby="config-heading">
   <div class="modal">
-    <h2>⚙ SYSTEM CONFIGURATION</h2>
-    <div class="f-grp"><label class="f-lbl">N8N SCAN WEBHOOK</label><input class="f-in" id="cfg-scan"/></div>
-    <div class="f-grp"><label class="f-lbl">N8N CHAT WEBHOOK</label><input class="f-in" id="cfg-chat"/></div>
-    <div class="f-grp"><label class="f-lbl">JSONBIN BIN ID</label><input class="f-in" id="cfg-bin"/></div>
-    <div class="f-grp"><label class="f-lbl">JSONBIN MASTER KEY</label><input class="f-in" id="cfg-key"/></div>
+    <h2 id="config-heading">⚙ PRIVATE SOC CONNECTION</h2>
+    <p class="config-desc">Enter the server's administrator token to view live telemetry. The token stays in this page's memory and is never saved to local storage.</p>
+    <div class="f-grp">
+      <label class="f-lbl" for="cfg-key">DASHBOARD ADMIN TOKEN</label>
+      <input class="f-in" id="cfg-key" type="password" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')saveConfig()"/>
+    </div>
+    <p class="config-desc">The JSONBin key and n8n webhook URLs must be configured as private Vercel environment variables, never pasted into this public website.</p>
     <div class="modal-btns">
-      <button class="modal-save" onclick="saveConfig()">✓ SAVE & CONNECT</button>
+      <button class="modal-save" onclick="saveConfig()">✓ CONNECT SECURELY</button>
       <button class="modal-cancel" onclick="closeConfig()">CANCEL</button>
     </div>
   </div>
 </div>
 
-<script>
-// ── PARTICLE NETWORK ──────────────────────────────────────────────────────────
-const cvs = document.getElementById('particle-canvas');
-const ctx2 = cvs.getContext('2d');
-function resizeCvs(){cvs.width=window.innerWidth;cvs.height=window.innerHeight;}
-resizeCvs(); window.addEventListener('resize',resizeCvs);
-
-const pts = Array.from({length:60},()=>({
-  x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
-  vx:(Math.random()-0.5)*0.4, vy:(Math.random()-0.5)*0.4,
-  r:Math.random()*1.5+0.3, a:Math.random()*0.5+0.1
-}));
-
-function animPts(){
-  ctx2.clearRect(0,0,cvs.width,cvs.height);
-  pts.forEach(p=>{
-    p.x+=p.vx; p.y+=p.vy;
-    if(p.x<0||p.x>cvs.width) p.vx*=-1;
-    if(p.y<0||p.y>cvs.height) p.vy*=-1;
-    ctx2.beginPath(); ctx2.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx2.fillStyle=`rgba(0,180,255,${p.a})`; ctx2.fill();
-  });
-  // Connection lines
-  for(let i=0;i<pts.length;i++){
-    for(let j=i+1;j<pts.length;j++){
-      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
-      if(d<130){
-        ctx2.beginPath();
-        ctx2.moveTo(pts[i].x,pts[i].y); ctx2.lineTo(pts[j].x,pts[j].y);
-        ctx2.strokeStyle=`rgba(0,180,255,${0.08*(1-d/130)})`;
-        ctx2.lineWidth=0.5; ctx2.stroke();
-      }
-    }
-  }
-  requestAnimationFrame(animPts);
-}
-animPts();
-
-// ── CONFIG ────────────────────────────────────────────────────────────────────
-const SCAN_URL   = 'https://status-customers-ceremony-favourite.trycloudflare.com/webhook/blue-soc-trigger';
-const CHAT_URL   = 'https://status-customers-ceremony-favourite.trycloudflare.com/webhook/blue-soc-chat';
-const BIN_ID     = '69cb7c73aaba882197adb0cf';
-const MASTER_KEY = '$2a$10$VhY8svRChLrOJcUZ/dcyvOMNpPlQjLcb5vRu4HC8g8.C6JOuc0P9C';
-const JSONBIN    = 'https://api.jsonbin.io/v3/b/'+BIN_ID;
-
-let cfg={scan:localStorage.getItem('scan')||SCAN_URL, chat:localStorage.getItem('chat')||CHAT_URL, binId:BIN_ID, binKey:MASTER_KEY};
-let st={events:[],blocks:[],runs:0,lastAnalysis:null,scanning:false,mode:'dashboard'};
-
-const STEPS=[
-  {i:'⏰',n:'SCHEDULE TRIGGER',d:'Every 5 minutes'},
-  {i:'📡',n:'QUERY SPLUNK',d:'index=* sourcetype=zeek* | head 20'},
-  {i:'{}',n:'PARSE THREATS',d:'Extract src/dst/type/severity'},
-  {i:'?',n:'THREATS FOUND?',d:'IF events exist → continue'},
-  {i:'🤖',n:'GEMINI AI ANALYST',d:'Analyze & classify threats'},
-  {i:'🔥',n:'PALO ALTO BLOCK',d:'Block at 157.201.22.58'},
-  {i:'📱',n:'TELEGRAM ALERT',d:'@Joeallan_blue_bot'},
-  {i:'📊',n:'UPDATE JSONBIN',d:'Live data → dashboard'}
-];
-
-// Clock
-function tick(){document.getElementById('clock').textContent=new Date().toISOString().replace('T',' ').substring(0,19)+' UTC';}
-setInterval(tick,1000);tick();
-
-// Steps
-function renderSteps(done=0,running=-1){
-  document.getElementById('wf-steps').innerHTML=STEPS.map((s,i)=>{
-    let cls='',sc='ss-ready',st2='READY',ic='';
-    if(i<done){cls='done';sc='ss-done';st2='✓ DONE';ic='done';}
-    if(i===running){cls='running';sc='ss-running';st2='▶ RUN';ic='running';}
-    return`<div class="wf-step ${cls}"><div class="wf-icon ${ic}">${s.i}</div><div class="wf-info"><div class="wf-name">${s.n}</div><div class="wf-detail">${s.d}</div></div><div class="wf-status ${sc}">${st2}</div></div>`;
-  }).join('');
-}
-renderSteps();
-
-// Poll JSONBin
-async function poll(){
-  try{
-    const r=await fetch(JSONBIN+'/latest',{headers:{'X-Master-Key':cfg.binKey,'X-Bin-Meta':'false'}});
-    if(!r.ok)return;
-    const raw=await r.json(); const d=raw.record||raw;
-    const evts=d.events||[],blks=d.blocked_ips||[];
-    document.getElementById('s-total').textContent=evts.length;
-    document.getElementById('s-runs').textContent=d.runs||0;
-    if(d.last_run)document.getElementById('last-run').textContent=new Date(d.last_run).toLocaleTimeString();
-    document.getElementById('s-crit').textContent=evts.filter(e=>e.severity==='critical'||e.severity==='high').length;
-    document.getElementById('s-rigby').textContent=evts.filter(e=>(e.event_type||'').toLowerCase().includes('rigby')).length;
-    document.getElementById('s-sources').textContent=[...new Set(evts.map(e=>e.source_ip).filter(Boolean))].length;
-    if(evts.length>st.events.length){evts.slice(st.events.length).forEach(e=>addEvt(e));st.events=evts;}
-    if(blks.length>st.blocks.length){
-      blks.slice(st.blocks.length).forEach(b=>addBlk(b));st.blocks=blks;
-      document.getElementById('s-blocked').textContent=blks.length;
-      document.getElementById('blocked-badge').textContent=blks.length+' ACTIVE';
-    }
-    if(d.analysis&&JSON.stringify(d.analysis)!==JSON.stringify(st.lastAnalysis)){
-      st.lastAnalysis=d.analysis;
-      const a=typeof d.analysis==='string'?JSON.parse(d.analysis):d.analysis;
-      if(a&&a.threat_level){
-        addMsg('bot',`🚨 <strong style="color:var(--red)">THREAT DETECTED & BLOCKED</strong><br>Level: <strong style="color:var(--red)">${a.threat_level.toUpperCase()}</strong><br>IP: <code style="color:var(--cyan);font-family:var(--mono)">${a.offending_ip||'none'}</code><br>Activity: ${a.activity||'N/A'}<br><span style="color:var(--green)">🔥 BLOCKED on Palo Alto 157.201.22.58</span>`,'BLUE SOC AI');
-        renderSteps(STEPS.length);
-        document.getElementById('wf-status').textContent='COMPLETE';
-      }
-    }
-    document.getElementById('poll-badge').innerHTML='<div class="pill-dot"></div>LIVE';
-  }catch(e){document.getElementById('poll-badge').innerHTML='<div class="pill-dot"></div>ERR';}
-}
-poll(); setInterval(poll,5000);
-
-// Trigger
-async function triggerScan(){
-  if(st.scanning)return; st.scanning=true;
-  const btn=document.getElementById('trig-btn');
-  btn.textContent='⏳ SCANNING...'; btn.classList.add('loading');
-  document.getElementById('feed-status').textContent='⚡ SCANNING';
-  document.getElementById('wf-status').textContent='RUNNING';
-  let s=0; const iv=setInterval(()=>{renderSteps(s,s);s++;if(s>=STEPS.length)clearInterval(iv);},1000);
-  try{
-    const r=await fetch(cfg.scan,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:'dashboard',timestamp:new Date().toISOString()})});
-    clearInterval(iv);
-    if(r.ok){showToast('✓ WORKFLOW TRIGGERED');document.getElementById('feed-status').textContent='● POLLING';}
-    else throw new Error('HTTP '+r.status);
-  }catch(e){clearInterval(iv);renderSteps(0,-1);document.getElementById('wf-status').textContent='ERROR';showToast('✗ CANNOT REACH N8N',true);}
-  finally{st.scanning=false;btn.textContent='▶ TRIGGER N8N WORKFLOW';btn.classList.remove('loading');}
-}
-
-function addEvt(e){
-  const feed=document.getElementById('event-feed');
-  if(feed.querySelector('div[style]'))feed.innerHTML='';
-  const sev=e.severity||'info';
-  const t=(e.event_type||'unknown').toLowerCase();
-  const tc=t.includes('zeek')?'type-zeek':t.includes('pan')||t.includes('pa')?'type-pan':t.includes('rigby')?'type-rigby':'type-zeek';
-  const card=document.createElement('div');card.className=`event-card ${sev}`;
-  card.innerHTML=`<div class="evt-top"><div class="evt-type ${tc}">${e.event_type||'unknown'}</div><div class="evt-time">${new Date(e.timestamp||Date.now()).toLocaleTimeString()}</div></div><div class="evt-msg">${e.message||'No details'}</div>${e.source_ip&&e.source_ip!=='unknown'?`<div class="evt-ips">${e.source_ip} ──→ ${e.dest_ip||'?'}</div>`:''}`;
-  feed.insertBefore(card,feed.firstChild);
-}
-
-function addBlk(b){
-  const list=document.getElementById('blocked-list');
-  const nb=list.querySelector('.no-blocks');if(nb)nb.remove();
-  const ip=typeof b==='string'?b:(b.ip||b);
-  const reason=typeof b==='object'?(b.reason||'AI-identified threat'):'Blocked';
-  const time=typeof b==='object'?(b.time||new Date().toLocaleTimeString()):new Date().toLocaleTimeString();
-  const entry=document.createElement('div');entry.className='blocked-entry';
-  entry.innerHTML=`<div class="blocked-ip">${ip}</div><div class="blocked-fw">PA</div><div style="flex:1"><div class="blocked-reason">${reason}</div></div><div class="blocked-time">${time}</div>`;
-  list.insertBefore(entry,list.firstChild);
-}
-
-function setTab(mode,btn){
-  st.mode=mode;
-  document.querySelectorAll('.chat-tab').forEach(t=>t.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('chat-in').placeholder=mode==='telegram'?'Sending via Telegram @Joeallan_blue_bot...':'Identify yourself or ask about threats...';
-}
-
-async function sendChat(){
-  const input=document.getElementById('chat-in');
-  const msg=input.value.trim();if(!msg)return;
-  const btn=document.getElementById('send-btn');btn.disabled=true;input.value='';
-  addMsg('user',msg,'YOU'); showTyping();
-  try{
-    const r=await fetch(cfg.chat,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:msg,source:'dashboard',sessionId:'dashboard-main',
-        context:{total_events:st.events.length,blocked_ips:st.blocks,n8n_runs:st.runs}})});
-    hideTyping();
-    if(r.ok){
-      const txt=await r.text();let reply='No response.';
-      if(txt&&txt.trim()){try{const d=JSON.parse(txt);reply=d.reply||d.response||d.output||d.message||txt;}catch(e){reply=txt;}}
-      addMsg('bot',reply,'BLUE SOC AI');
-    }else throw new Error('HTTP '+r.status);
-  }catch(e){hideTyping();addMsg('bot','⚠ CANNOT REACH AI AGENT<br><span style="color:var(--text-dim);font-size:9px">'+e.message+'</span>','SYSTEM ERROR');}
-  finally{btn.disabled=false;input.focus();}
-}
-
-function addMsg(role,text,meta){
-  const c=document.getElementById('chat-box');
-  const d=document.createElement('div');d.className='chat-msg '+role;
-  d.innerHTML=`<div class="msg-bub">${text}</div><div class="msg-meta">${meta} · ${new Date().toLocaleTimeString()}</div>`;
-  c.appendChild(d);c.scrollTop=c.scrollHeight;
-}
-
-let typEl=null;
-function showTyping(){const c=document.getElementById('chat-box');typEl=document.createElement('div');typEl.className='chat-msg bot';typEl.innerHTML='<div class="typing-ind"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div>';c.appendChild(typEl);c.scrollTop=c.scrollHeight;}
-function hideTyping(){if(typEl){typEl.remove();typEl=null;}}
-
-function clearFeed(){st.events=[];document.getElementById('event-feed').innerHTML='<div style="padding:24px;text-align:center;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:2px">◈ FEED CLEARED ◈</div>';renderSteps();document.getElementById('wf-status').textContent='READY';}
-
-function openConfig(){document.getElementById('cfg-scan').value=cfg.scan;document.getElementById('cfg-chat').value=cfg.chat;document.getElementById('cfg-bin').value=cfg.binId;document.getElementById('cfg-key').value=cfg.binKey;document.getElementById('cfg-modal').classList.remove('hidden');}
-function closeConfig(){document.getElementById('cfg-modal').classList.add('hidden');}
-function saveConfig(){cfg.scan=document.getElementById('cfg-scan').value.trim()||cfg.scan;cfg.chat=document.getElementById('cfg-chat').value.trim()||cfg.chat;cfg.binId=document.getElementById('cfg-bin').value.trim()||cfg.binId;cfg.binKey=document.getElementById('cfg-key').value.trim()||cfg.binKey;localStorage.setItem('scan',cfg.scan);localStorage.setItem('chat',cfg.chat);closeConfig();showToast('✓ CONFIG SAVED');}
-
-function showToast(msg,err=false){const ex=document.querySelector('.toast');if(ex)ex.remove();const t=document.createElement('div');t.className='toast'+(err?' error':'');t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3500);}
-</script>
+<script src="./app.js" defer></script>
 </body>
 </html>
