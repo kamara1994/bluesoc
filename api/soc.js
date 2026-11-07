@@ -103,7 +103,14 @@ async function telemetry(req, res) {
     );
     const result = await response.json();
     const record = result?.record ?? result;
-    return res.status(200).json({ ok: true, data: normalizeRecord(record) });
+    return res.status(200).json({
+      ok: true,
+      data: normalizeRecord(record),
+      features: {
+        scan_enabled: process.env.BLUE_SOC_ALLOW_SCAN === 'true' && Boolean(urlFromEnv('BLUE_SOC_SCAN_WEBHOOK')),
+        chat_enabled: Boolean(urlFromEnv('BLUE_SOC_CHAT_WEBHOOK')),
+      },
+    });
   } catch {
     return fail(res, 502, 'Telemetry source unavailable');
   }
