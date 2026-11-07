@@ -13,7 +13,7 @@ const originalEnv = {
 const token = 'test-token-with-at-least-thirty-two-chars';
 function setup() {
   process.env.BLUE_SOC_ADMIN_TOKEN = token;
-  process.env.BLUE_SOC_JSONBIN_ID = '69cb7c73aaba882197adb0cf';
+  process.env.BLUE_SOC_JSONBIN_ID = 'abcdef1234567890abcdef12';
   process.env.BLUE_SOC_JSONBIN_READ_KEY = 'dummy-read-key';
   process.env.BLUE_SOC_ALLOW_SCAN = 'false';
 }
