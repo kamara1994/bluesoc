@@ -17,6 +17,7 @@ const demoEventTime = (minutes) => new Date(Date.now() - minutes * 60000).toISOS
 const state = {
   token: '',
   connection:'demo',
+  features:{scan_enabled:false,chat_enabled:false},
   mode:'dashboard',
   events:[],
   blocks:[],
@@ -55,18 +56,18 @@ function setPill(id, label, working) {
 function setConnection(mode, detail) {
   state.connection = mode;
   const connected = mode === 'connected';
-  setPill('n8n-status', connected ? 'N8N CONFIGURED' : 'N8N UNVERIFIED', false);
-  setPill('splunk-status', connected ? 'TELEMETRY CONNECTED' : 'SPLUNK UNVERIFIED', connected);
-  setPill('ai-status', connected ? 'AI ON DEMAND' : 'AI OFFLINE', false);
+  setPill('n8n-status', 'N8N UNVERIFIED', false);
+  setPill('splunk-status', connected ? 'JSONBIN CONNECTED' : 'SPLUNK UNVERIFIED', connected);
+  setPill('ai-status', connected && state.features.chat_enabled ? 'AI CHAT CONFIGURED' : 'AI UNVERIFIED', false);
   setPill('poll-badge', mode === 'demo' ? 'DEMO DATA' : connected ? 'DATA SYNC' : 'OFFLINE', connected);
   put('feed-status', mode === 'demo' ? '● EXAMPLE EVENTS' : connected ? '● READ-ONLY SYNC' : '● NOT CONNECTED');
   put('connection-note', detail ||
     (mode === 'demo' ? 'DEMO MODE · Synthetic events only. No firewall actions, live Splunk data or AI calls.' :
      connected ? 'Authenticated telemetry read. Firewall outcomes are reported by upstream data, not independently verified.' :
      'Telemetry unavailable. Use CONFIG to reconnect.'));
-  $('trig-btn').disabled = !connected || state.scanning;
-  $('send-btn').disabled = !connected;
-  $('chat-in').disabled = !connected;
+  $('trig-btn').disabled = !connected || !state.features.scan_enabled || state.scanning;
+  $('send-btn').disabled = !connected || !state.features.chat_enabled;
+  $('chat-in').disabled = !connected || !state.features.chat_enabled;
 }
 function clearChildren(id) {
   $(id).replaceChildren();
@@ -142,10 +143,12 @@ function renderSnapshot(data, demo) {
       'A firewall block requires independent policy verification.',
     ].join('\n'),'BLUE SOC ANALYSIS');
   }
-  renderSteps(demo?0:state.runs>0?STEPS.length:0);
+  // A run count does not prove each workflow step succeeded; require separate verification.
+  renderSteps();
 }
 function loadDemo() {
   state.token='';
+  state.features={scan_enabled:false,chat_enabled:false};
   state.lastSnapshot='';
   const data={
     events:[
@@ -184,15 +187,18 @@ async function poll() {
   try{
     const result=await request(apiPath,{method:'GET'});
     if(!result.ok||!result.data)throw new Error('No telemetry returned');
+    state.features={scan_enabled:result.features?.scan_enabled===true,chat_enabled:result.features?.chat_enabled===true};
     renderSnapshot(result.data,false);
     setConnection('connected','Private telemetry retrieved at '+formatTime(result.data.fetched_at)+'. Firewall blocks are reported, not independently verified.');
   }catch(error){
     if(error.status===401)state.token='';
+    state.features={scan_enabled:false,chat_enabled:false};
     setConnection('offline','Unable to retrieve telemetry: '+error.message+'. Check the admin token and server environment.');
   }finally{state.requestInFlight=false;}
 }
 async function triggerScan() {
   if(!state.token){openConfig();return;}
+  if(!state.features.scan_enabled){showToast('Scan workflow is not enabled on the server',true);return;}
   if(state.scanning)return;
   if(!window.confirm('Trigger the authorized n8n workflow? It may request real firewall containment if enabled in your lab.'))return;
   state.scanning=true;
@@ -215,7 +221,7 @@ async function triggerScan() {
   }finally{
     state.scanning=false;
     $('trig-btn').textContent='▶ REQUEST N8N WORKFLOW';
-    $('trig-btn').disabled=state.connection!=='connected';
+    $('trig-btn').disabled=state.connection!=='connected' || !state.features.scan_enabled;
   }
 }
 function addMsg(role,text,meta='BLUE SOC'){
@@ -246,6 +252,7 @@ async function sendChat(){
   const message=input.value.trim().slice(0,2000);
   if(!message)return;
   if(!state.token){openConfig();return;}
+  if(!state.features.chat_enabled){showToast('AI workflow is not configured on the server',true);return;}
   input.value='';
   $('send-btn').disabled=true;
   addMsg('user',message,'YOU');
@@ -261,7 +268,7 @@ async function sendChat(){
     hideTyping();
     addMsg('bot','Chat unavailable: '+e.message,'SYSTEM STATUS');
   }finally{
-    $('send-btn').disabled=state.connection!=='connected';
+    $('send-btn').disabled=state.connection!=='connected' || !state.features.chat_enabled;
     input.focus();
   }
 }
